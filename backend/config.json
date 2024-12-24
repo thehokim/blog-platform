@@ -1,0 +1,26 @@
+{
+    "databases": {
+        "default": {
+            "host": "192.168.20.29",
+            "port": "5432",
+            "username": "postgres",
+            "password": "Admincmspace123#@!",
+            "database": "blog_platform",
+            "driver": "postgres",
+            "sslmode": "disable"
+        }
+    },
+    "url_prefix": "/admin",
+    "theme": "sword",
+    "language": "en",
+    "store": {
+        "path": "./uploads",
+        "prefix": "uploads",
+        "max_size": 5242880
+    },
+    "logger": {
+        "path": "./logs",
+        "level": "debug",
+        "format": "text"
+    }
+}
