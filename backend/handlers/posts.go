@@ -47,15 +47,14 @@ func respondWithError(w http.ResponseWriter, statusCode int, message string) {
 // CreatePostWithContent - Создание поста с содержимым
 func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		ID      uint                  `json:"id"`
-		Title   string                `json:"title"`
-		Content string                `json:"content"`
-		Tags    []string              `json:"tags"`
-		Texts   []models.TextContent  `json:"texts"`
-		Images  []models.ImageContent `json:"images"`
-		Maps    []models.MapContent   `json:"maps"`
-		Videos  []models.VideoContent `json:"videos"`
-		Tables  []models.TableContent `json:"tables"`
+		ID          uint                  `json:"id"`
+		Title       string                `json:"title"`
+		Description string                `json:"description"`
+		Tags        []string              `json:"tags"`
+		Tables      []models.TableContent `json:"tableDate"`
+		Images      []models.ImageContent `json:"imageUrl"`
+		Maps        []models.MapContent   `json:"mapUrl"`
+		Videos      []models.VideoContent `json:"videoUrl"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -70,10 +69,10 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post := models.Post{
-		Title:    input.Title,
-		Content:  input.Content,
-		Slug:     generateSlug(input.Title),
-		AuthorID: input.ID,
+		Title:       input.Title,
+		Description: input.Description,
+		Slug:        generateSlug(input.Title),
+		AuthorID:    input.ID,
 	}
 
 	if err := database.DB.Create(&post).Error; err != nil {
@@ -81,7 +80,7 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	saveContent(&post, input.Texts, input.Images, input.Maps, input.Videos, input.Tables)
+	saveContent(&post, input.Images, input.Maps, input.Videos, input.Tables)
 
 	if err := saveTags(&post, input.Tags); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to save tags")
@@ -92,13 +91,7 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(post)
 }
 
-func saveContent(post *models.Post, texts []models.TextContent, images []models.ImageContent, maps []models.MapContent, videos []models.VideoContent, tables []models.TableContent) {
-	for _, text := range texts {
-		text.PostID = post.ID
-		if err := database.DB.Create(&text).Error; err != nil {
-			continue
-		}
-	}
+func saveContent(post *models.Post, images []models.ImageContent, maps []models.MapContent, videos []models.VideoContent, tables []models.TableContent) {
 	for _, image := range images {
 		image.PostID = post.ID
 		if err := database.DB.Create(&image).Error; err != nil {
@@ -151,27 +144,92 @@ func saveTags(post *models.Post, tagNames []string) error {
 	return database.DB.Model(post).Association("Tags").Replace(allTags)
 }
 
-// GetPosts - Получение всех постов
+func extractTagNames(tags []models.Tag) []string {
+	var tagNames []string
+	for _, tag := range tags {
+		tagNames = append(tagNames, tag.Name)
+	}
+	return tagNames
+}
+
+func formatTableData(tables []models.TableContent) []map[string]interface{} {
+	var formattedTables []map[string]interface{}
+
+	for _, table := range tables {
+		var parsedTable map[string]interface{}
+		if err := json.Unmarshal([]byte(table.Data), &parsedTable); err != nil {
+			log.Printf("Failed to parse table content: %v", err)
+			continue
+		}
+		formattedTables = append(formattedTables, parsedTable)
+	}
+
+	return formattedTables
+}
+
 func GetPosts(w http.ResponseWriter, r *http.Request) {
 	log.Println("GetPosts called")
+
 	var posts []models.Post
+	// Загрузка постов вместе со связанными данными
 	if err := database.DB.Preload("Tags").
-		Preload("Texts").
-		Preload("Images").
-		Preload("Maps").
-		Preload("Videos").
-		Preload("Tables").
+		Preload("Author").
+		Preload("Images").    // Загрузка связанных изображений
+		Preload("Videos").    // Загрузка связанных видео
+		Preload("Maps").      // Загрузка связанных карт
+		Preload("TableData"). // Загрузка связанных таблиц
 		Find(&posts).Error; err != nil {
 		log.Printf("Database error: %v", err)
 		respondWithError(w, http.StatusInternalServerError, "Failed to fetch posts")
 		return
 	}
-	log.Printf("Fetched %d posts", len(posts))
+
+	// Форматирование и отправка данных клиенту
+	var formattedPosts []map[string]interface{}
+	for _, post := range posts {
+		formattedPost := map[string]interface{}{
+			"id":          post.ID,
+			"title":       post.Title,
+			"description": post.Description,
+			"date":        post.Date,
+			"tags":        extractTagNames(post.Tags),
+			"imageUrl": func() []string {
+				var images []string
+				for _, img := range post.Images {
+					images = append(images, img.URL)
+				}
+				return images
+			}(),
+			"mapUrl": func() []map[string]float64 {
+				var maps []map[string]float64
+				for _, m := range post.Maps {
+					maps = append(maps, map[string]float64{
+						"latitude":  m.Latitude,
+						"longitude": m.Longitude,
+					})
+				}
+				return maps
+			}(),
+			"videoUrl": func() []string {
+				var videos []string
+				for _, v := range post.Videos {
+					videos = append(videos, v.URL)
+				}
+				return videos
+			}(),
+			"tableData": formatTableData(post.TableData),
+			"author": map[string]string{
+				"name":     post.Author.Username,
+				"imageUrl": post.Author.Avatar,
+			},
+		}
+		formattedPosts = append(formattedPosts, formattedPost)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(posts)
+	json.NewEncoder(w).Encode(formattedPosts)
 }
 
-// GetPost - Получение поста по ID
 func GetPost(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
@@ -180,18 +238,58 @@ func GetPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var post models.Post
+	// Загрузка поста вместе со связанными данными
 	if err := database.DB.Preload("Tags").
-		Preload("Texts").
-		Preload("Images").
-		Preload("Maps").
-		Preload("Videos").
-		Preload("Tables").
+		Preload("Author").
+		Preload("Images").    // Загрузка связанных изображений
+		Preload("Videos").    // Загрузка связанных видео
+		Preload("Maps").      // Загрузка связанных карт
+		Preload("TableData"). // Загрузка связанных таблиц
 		First(&post, id).Error; err != nil {
 		respondWithError(w, http.StatusNotFound, "Post not found")
 		return
 	}
+
+	// Форматирование и отправка данных клиенту
+	formattedPost := map[string]interface{}{
+		"id":          post.ID,
+		"title":       post.Title,
+		"description": post.Description,
+		"date":        post.Date,
+		"tags":        extractTagNames(post.Tags),
+		"imageUrl": func() []string {
+			var images []string
+			for _, img := range post.Images {
+				images = append(images, img.URL)
+			}
+			return images
+		}(),
+		"mapUrl": func() []map[string]float64 {
+			var maps []map[string]float64
+			for _, m := range post.Maps {
+				maps = append(maps, map[string]float64{
+					"latitude":  m.Latitude,
+					"longitude": m.Longitude,
+				})
+			}
+			return maps
+		}(),
+		"videoUrl": func() []string {
+			var videos []string
+			for _, v := range post.Videos {
+				videos = append(videos, v.URL)
+			}
+			return videos
+		}(),
+		"tableData": formatTableData(post.TableData),
+		"author": map[string]string{
+			"name":     post.Author.Username,
+			"imageUrl": post.Author.Avatar,
+		},
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(post)
+	json.NewEncoder(w).Encode(formattedPost)
 }
 
 // UpdatePost - Обновление поста
@@ -209,14 +307,13 @@ func UpdatePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		Title   string                `json:"title"`
-		Content string                `json:"content"`
-		Tags    []string              `json:"tags"`
-		Texts   []models.TextContent  `json:"texts"`
-		Images  []models.ImageContent `json:"images"`
-		Maps    []models.MapContent   `json:"maps"`
-		Videos  []models.VideoContent `json:"videos"`
-		Tables  []models.TableContent `json:"tables"`
+		Title       string                `json:"title"`
+		Description string                `json:"description"`
+		Tags        []string              `json:"tags"`
+		Tables      []models.TableContent `json:"tableDate"`
+		Images      []models.ImageContent `json:"imageUrl"`
+		Maps        []models.MapContent   `json:"mapUrl"`
+		Videos      []models.VideoContent `json:"videoUrl"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid input")
@@ -224,7 +321,7 @@ func UpdatePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post.Title = input.Title
-	post.Content = input.Content
+	post.Description = input.Description
 
 	if err := saveTags(&post, input.Tags); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to update tags")
@@ -256,7 +353,7 @@ func DeletePost(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// LikePost - Лайк поста
+// LikePost - Add a like to a post
 func LikePost(w http.ResponseWriter, r *http.Request) {
 	postID, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
@@ -267,6 +364,13 @@ func LikePost(w http.ResponseWriter, r *http.Request) {
 	userID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
 	if err != nil {
 		http.Error(w, "Invalid User ID format", http.StatusBadRequest)
+		return
+	}
+
+	// Проверка на дублирующий лайк
+	var existingLike models.Like
+	if err := database.DB.Where("user_id = ? AND post_id = ?", userID, postID).First(&existingLike).Error; err == nil {
+		http.Error(w, "User has already liked this post", http.StatusConflict)
 		return
 	}
 
@@ -284,23 +388,57 @@ func LikePost(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Post liked successfully"})
 }
 
-// SearchPosts - Поиск постов
-func SearchPosts(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
-	if query == "" {
-		http.Error(w, "Query parameter 'q' is required", http.StatusBadRequest)
+// GetPostLikes - Retrieve the number of likes for a post
+func GetPostLikes(w http.ResponseWriter, r *http.Request) {
+	postID, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, "Invalid Post ID format", http.StatusBadRequest)
 		return
 	}
 
-	var posts []models.Post
-	if err := database.DB.Where("title LIKE ? OR content LIKE ?", "%"+query+"%", "%"+query+"%").
-		Find(&posts).Error; err != nil {
-		http.Error(w, "Failed to fetch posts", http.StatusInternalServerError)
+	var likeCount int64
+	if err := database.DB.Model(&models.Like{}).Where("post_id = ?", postID).Count(&likeCount).Error; err != nil {
+		http.Error(w, "Failed to fetch like count", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(posts)
+	json.NewEncoder(w).Encode(map[string]int64{"likes": likeCount})
+}
+
+// SearchPosts - Поиск постов
+func SearchPosts(w http.ResponseWriter, r *http.Request) {
+	// Получение параметров из строки запроса
+	search := r.URL.Query().Get("search") // Для текстового поиска
+	tag := r.URL.Query().Get("tag")       // Для фильтрации по тегу
+
+	var posts []models.Post
+
+	// Создаем базовый запрос с предзагрузкой зависимостей
+	query := database.DB.Preload("Tags").
+		Preload("Author").
+		Preload("TableData").
+		Preload("Images").
+		Preload("Maps").
+		Preload("Videos")
+
+	// Фильтрация по ключевому слову (title или description)
+	if search != "" {
+		query = query.Where("title ILIKE ? OR description ILIKE ?", "%"+search+"%", "%"+search+"%")
+	}
+
+	// Фильтрация по тегу
+	if tag != "" {
+		query = query.Joins("JOIN post_tags ON posts.id = post_tags.post_id").
+			Joins("JOIN tags ON post_tags.tag_id = tags.id").
+			Where("tags.name = ?", tag)
+	}
+
+	// Выполняем запрос
+	if err := query.Find(&posts).Error; err != nil {
+		http.Error(w, "Failed to fetch posts", http.StatusInternalServerError)
+		return
+	}
 }
 
 // SavePost - Сохранение поста

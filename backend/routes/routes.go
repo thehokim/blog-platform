@@ -33,6 +33,7 @@ func initCommentRoutes(router *mux.Router) {
 	router.HandleFunc("/posts/{id:[0-9]+}/comments", handlers.GetComments).Methods("GET")    // Get comments for a post
 	router.HandleFunc("/posts/{id:[0-9]+}/comments", handlers.CreateComment).Methods("POST") // Create a comment for a post
 	router.HandleFunc("/comments/{id:[0-9]+}/like", handlers.LikeComment).Methods("POST")    // Like a comment
+	router.HandleFunc("/comments/{id:[0-9]+}/like", handlers.GetLikes).Methods("GET")
 }
 
 // initUserRoutes sets up user-related routes
@@ -44,6 +45,9 @@ func initUserRoutes(router *mux.Router) {
 }
 func initNotificationRoutes(router *mux.Router) {
 	router.HandleFunc("/notifications", handlers.GetNotifications).Methods("GET") // Получение уведомлений
+	router.HandleFunc("/notifications/{id}/reaction", handlers.ReactToNotification).Methods("POST")
+	router.HandleFunc("/notifications/{id}/reactions", handlers.GetReactionsForNotification).Methods("GET")
+
 }
 
 func initPostRoutes(router *mux.Router) {
@@ -51,8 +55,9 @@ func initPostRoutes(router *mux.Router) {
 	router.HandleFunc("/posts/{id:[0-9]+}", handlers.GetPost).Methods("GET")
 	router.HandleFunc("/posts/{id:[0-9]+}", handlers.UpdatePost).Methods("PUT")
 	router.HandleFunc("/posts/{id:[0-9]+}", handlers.DeletePost).Methods("DELETE")
-	router.HandleFunc("/posts/{id:[0-9]+}/like", handlers.LikePost).Methods("POST")
 	router.HandleFunc("/search", handlers.SearchPosts).Methods("GET")
 	router.HandleFunc("/posts/{id:[0-9]+}/save", handlers.SavePost).Methods("POST")    // Сохранить пост
 	router.HandleFunc("/posts/create", handlers.CreatePostWithContent).Methods("POST") // Новый маршрут
+	router.HandleFunc("/{id:[0-9]+}/like", handlers.LikePost).Methods("POST")          // Лайк постаpost
+	router.HandleFunc("/{id:[0-9]+}/likes", handlers.GetPostLikes).Methods("GET")      // Получение лайков поста
 }

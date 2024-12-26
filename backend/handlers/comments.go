@@ -12,36 +12,41 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// GetComments - Retrieve all comments for a post
+// GetComments - Retrieve all comments for a post with filters
 func GetComments(w http.ResponseWriter, r *http.Request) {
-	postID, err := strconv.Atoi(mux.Vars(r)["id"])
+	postIDStr := r.URL.Query().Get("post_id")
+	if postIDStr == "" {
+		http.Error(w, "Post ID is required", http.StatusBadRequest)
+		return
+	}
+
+	postID, err := strconv.Atoi(postIDStr)
 	if err != nil {
 		http.Error(w, "Invalid Post ID format", http.StatusBadRequest)
 		return
 	}
 
+	likeFilter := r.URL.Query().Get("like")
+	editFilter := r.URL.Query().Get("edit")
+	deleteFilter := r.URL.Query().Get("delete")
+
 	var comments []models.Comment
-	if err := database.DB.Where("post_id = ?", postID).Find(&comments).Error; err != nil {
+	query := database.DB.Where("post_id = ?", postID)
+
+	// Применение фильтров
+	if likeFilter != "" {
+		query = query.Where("likes = ?", likeFilter)
+	}
+	if editFilter != "" {
+		query = query.Where("edited = ?", editFilter)
+	}
+	if deleteFilter != "" {
+		query = query.Where("deleted = ?", deleteFilter)
+	}
+
+	if err := query.Find(&comments).Error; err != nil {
 		http.Error(w, "Failed to fetch comments", http.StatusInternalServerError)
 		return
-	}
-
-	// Fetch the post to get the author's ID
-	var post models.Post
-	if err := database.DB.First(&post, postID).Error; err != nil {
-		http.Error(w, "Post not found", http.StatusNotFound)
-		return
-	}
-
-	// Create a notification for the post's author
-	notification := models.Notification{
-		UserID:  post.AuthorID,
-		Type:    "view_comments",
-		PostID:  uintPtr(uint(postID)),
-		Message: fmt.Sprintf("Comments on your post with ID %d were viewed", postID),
-	}
-	if err := database.DB.Create(&notification).Error; err != nil {
-		log.Printf("Failed to create notification: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -50,34 +55,46 @@ func GetComments(w http.ResponseWriter, r *http.Request) {
 
 // CreateComment - Create a new comment for a post
 func CreateComment(w http.ResponseWriter, r *http.Request) {
-	postID, err := strconv.Atoi(mux.Vars(r)["id"])
+	postIDStr := r.URL.Query().Get("post_id")
+	if postIDStr == "" {
+		http.Error(w, "Post ID is required", http.StatusBadRequest)
+		return
+	}
+
+	postID, err := strconv.Atoi(postIDStr)
 	if err != nil {
 		http.Error(w, "Invalid Post ID format", http.StatusBadRequest)
 		return
 	}
 
-	userID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
+	userIDStr := r.URL.Query().Get("user_id")
+	if userIDStr == "" {
+		http.Error(w, "User ID is required", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
 		http.Error(w, "Invalid User ID format", http.StatusBadRequest)
 		return
 	}
 
-	var comment models.Comment
-	if err := json.NewDecoder(r.Body).Decode(&comment); err != nil {
-		log.Printf("Failed to parse request body: %v", err)
+	var input struct {
+		Content string `json:"content"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
 
-	// Log the parsed comment details
-	log.Printf("Creating comment: %+v", comment)
+	comment := models.Comment{
+		Content:  input.Content,
+		PostID:   uint(postID),
+		AuthorID: uint(userID),
+	}
 
-	comment.PostID = uint(postID)
-	comment.AuthorID = uint(userID)
-
-	// Attempt to create the comment in the database
 	if err := database.DB.Create(&comment).Error; err != nil {
-		log.Printf("Failed to create comment: %v", err)
 		http.Error(w, "Failed to create comment", http.StatusInternalServerError)
 		return
 	}
@@ -85,24 +102,6 @@ func CreateComment(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(comment)
-}
-
-// GetLikes - Retrieve the number of likes for a post
-func GetLikes(w http.ResponseWriter, r *http.Request) {
-	postID, err := strconv.Atoi(mux.Vars(r)["id"])
-	if err != nil {
-		http.Error(w, "Invalid Post ID format", http.StatusBadRequest)
-		return
-	}
-
-	var likeCount int64
-	if err := database.DB.Model(&models.Like{}).Where("post_id = ?", postID).Count(&likeCount).Error; err != nil {
-		http.Error(w, "Failed to fetch like count", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]int64{"likes": likeCount})
 }
 
 // LikeComment - Add a like to a comment
@@ -164,4 +163,22 @@ func LikeComment(w http.ResponseWriter, r *http.Request) {
 // Helper function for uint pointer
 func uintPtr(i uint) *uint {
 	return &i
+}
+
+// GetLikes - Retrieve the number of likes for a comment
+func GetLikes(w http.ResponseWriter, r *http.Request) {
+	commentID, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, "Invalid Comment ID format", http.StatusBadRequest)
+		return
+	}
+
+	var likeCount int64
+	if err := database.DB.Model(&models.Like{}).Where("comment_id = ?", commentID).Count(&likeCount).Error; err != nil {
+		http.Error(w, "Failed to fetch like count", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int64{"likes": likeCount})
 }

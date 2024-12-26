@@ -23,20 +23,19 @@ type User struct {
 
 // Post represents a blog post
 type Post struct {
-	ID        uint           `gorm:"primaryKey"`
-	Title     string         `gorm:"not null"`
-	Slug      string         `gorm:"unique"`
-	Content   string         `gorm:"not null"`
-	AuthorID  uint           `gorm:"index"`
-	Author    User           `gorm:"foreignKey:AuthorID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
-	Tags      []Tag          `gorm:"many2many:post_tags;"`
-	Texts     []TextContent  `gorm:"foreignKey:PostID"` // Убедитесь, что связь указана корректно
-	Images    []ImageContent `gorm:"foreignKey:PostID"`
-	Maps      []MapContent   `gorm:"foreignKey:PostID"`
-	Videos    []VideoContent `gorm:"foreignKey:PostID"`
-	Tables    []TableContent `gorm:"foreignKey:PostID"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	ID          uint           `gorm:"primaryKey"`
+	Title       string         `gorm:"not null"`
+	Slug        string         `gorm:"unique"`
+	Description string         `gorm:"not null"`
+	AuthorID    uint           `gorm:"index"`
+	Author      User           `gorm:"foreignKey:AuthorID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Tags        []Tag          `gorm:"many2many:post_tags;"`
+	Images      []ImageContent `gorm:"foreignKey:PostID"`
+	Maps        []MapContent   `gorm:"foreignKey:PostID"`
+	Videos      []VideoContent `gorm:"foreignKey:PostID"`
+	TableData   []TableContent `gorm:"foreignKey:PostID"`
+	Date        time.Time      `gorm:"default:CURRENT_TIMESTAMP"`
+	UpdatedAt   time.Time      `json:"updated_at"`
 }
 
 // Tag represents a tag associated with posts
@@ -51,11 +50,12 @@ type Tag struct {
 // Comment represents a comment on a post
 type Comment struct {
 	ID        uint      `gorm:"primaryKey"`
-	Content   string    `gorm:"not null"` // Ensure this field is not null
+	Content   string    `gorm:"not null"`
 	PostID    uint      `gorm:"not null;index"`
-	Post      Post      `gorm:"foreignKey:PostID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	AuthorID  uint      `gorm:"not null;index"`
-	Author    User      `gorm:"foreignKey:AuthorID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Likes     int       `gorm:"default:0"`
+	Edited    bool      `gorm:"default:false"`
+	Deleted   bool      `gorm:"default:false"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -70,14 +70,26 @@ type Like struct {
 }
 
 type Notification struct {
-	ID        uint   `gorm:"primaryKey"`
-	UserID    uint   `gorm:"not null"`
-	Type      string `gorm:"not null"` // Например, "like", "comment", "reply", "like_comment"
-	PostID    *uint  `json:"post_id,omitempty"`
-	CommentID *uint  `json:"comment_id,omitempty"`
-	Message   string `gorm:"not null"`
-	IsRead    bool   `gorm:"default:false"`
-	CreatedAt time.Time
+	ID             uint       `gorm:"primaryKey"`
+	UserID         uint       `gorm:"not null"`
+	Type           string     `gorm:"not null"` // Например, "like", "comment", "reaction_to_notification"
+	PostID         *uint      `json:"post_id,omitempty"`
+	CommentID      *uint      `json:"comment_id,omitempty"`
+	NotificationID *uint      `json:"notification_id,omitempty"` // ID родительского уведомления
+	Message        string     `gorm:"not null"`
+	IsRead         bool       `gorm:"default:false"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+	Reactions      []Reaction `gorm:"foreignKey:NotificationID"` // Связь с реакциями
+}
+
+type Reaction struct {
+	ID             uint      `gorm:"primaryKey"`
+	UserID         uint      `gorm:"not null;index"`
+	NotificationID *uint     `gorm:"index;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"` // ID уведомления
+	Type           string    `gorm:"not null"`                                            // Тип реакции ("like", "dislike", "emoji")
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type SavedPost struct {
@@ -112,6 +124,7 @@ type MapContent struct {
 	Latitude  float64   `gorm:"not null"`
 	Longitude float64   `gorm:"not null"`
 	PostID    uint      `gorm:"not null;index"`
+	Url       string    `gorm:"-"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
