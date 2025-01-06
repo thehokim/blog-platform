@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -23,70 +24,80 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		Username string `json:"username"`
 	}
 
-	// Decode input JSON
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
 
-	// Check if user already exists
 	var existingUser models.User
 	if err := database.DB.Where("email = ?", input.Email).First(&existingUser).Error; err == nil {
 		http.Error(w, "User already exists", http.StatusConflict)
 		return
 	}
 
-	// Generate a unique username if not provided
 	if input.Username == "" {
 		input.Username = generateUniqueUsername(input.Email)
 	} else {
-		// Ensure username is unique
 		if err := database.DB.Where("username = ?", input.Username).First(&existingUser).Error; err == nil {
 			http.Error(w, "Username already taken", http.StatusConflict)
 			return
 		}
 	}
 
-	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "Error hashing password", http.StatusInternalServerError)
 		return
 	}
 
-	// Save user to the database
 	user := models.User{
 		Email:    input.Email,
 		Password: string(hashedPassword),
 		Username: input.Username,
 		IsActive: true,
 	}
+
 	if err := database.DB.Create(&user).Error; err != nil {
 		http.Error(w, "Error creating user", http.StatusInternalServerError)
 		return
 	}
 
+	token, err := generateJWT(user.ID)
+	if err != nil {
+		http.Error(w, "Error generating token", http.StatusInternalServerError)
+		return
+	}
+
+	// Update the user record with the verification token
+	if err := database.DB.Model(&user).Update("verification_token", token).Error; err != nil {
+		http.Error(w, "Error saving token", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintln(w, `{"message": "User registered successfully"}`)
+	json.NewEncoder(w).Encode(map[string]string{"token": token, "message": "User registered successfully"})
+}
+
+func generateJWT(userID uint) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": userID,
+		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+	})
+	return token.SignedString(secretKey)
 }
 
 func generateUniqueUsername(email string) string {
-	base := strings.Split(email, "@")[0] // Используем часть email до @
-	var username string
+	base := strings.Split(email, "@")[0]
+	username := base
 	var count int
 	for {
-		if count == 0 {
-			username = base
-		} else {
-			username = fmt.Sprintf("%s%d", base, count)
-		}
 		var existingUser models.User
-		if err := database.DB.Where("username = ?", username).First(&existingUser).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				break
-			}
+		if err := database.DB.Where("username = ?", username).First(&existingUser).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+			break
 		}
 		count++
+		username = fmt.Sprintf("%s%d", base, count)
 	}
 	return username
 }
