@@ -24,9 +24,9 @@ type User struct {
 // Post represents a blog post
 type Post struct {
 	ID          uint           `gorm:"primaryKey"`
-	Title       string         `gorm:"not null"`
+	Title       string         `json:"title"` // Убрали not null
 	Slug        string         `gorm:"unique"`
-	Description string         `gorm:"not null"`
+	Description string         `json:"description"` // Убрали not null
 	AuthorID    uint           `gorm:"index"`
 	Author      User           `gorm:"foreignKey:AuthorID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Tags        []Tag          `gorm:"many2many:post_tags;"`
@@ -102,8 +102,8 @@ type SavedPost struct {
 // TextContent represents a block of text content
 type TextContent struct {
 	ID        uint      `gorm:"primaryKey"`
-	Content   string    `gorm:"not null"`
-	PostID    uint      `gorm:"not null;index"`
+	Content   string    `json:"content"` // Убрали not null
+	PostID    uint      `gorm:"index"`   // Убрали not null
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -111,9 +111,9 @@ type TextContent struct {
 // ImageContent represents an image block
 type ImageContent struct {
 	ID        uint      `gorm:"primaryKey"`
-	URL       string    `gorm:"not null"`
+	URL       string    `json:"url"` // Убрали not null
 	AltText   string    `json:"alt_text"`
-	PostID    uint      `gorm:"not null;index"`
+	PostID    uint      `gorm:"index"` // Убрали not null
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -121,10 +121,10 @@ type ImageContent struct {
 // MapContent represents a map block
 type MapContent struct {
 	ID        uint      `gorm:"primaryKey"`
-	Latitude  float64   `gorm:"not null"`
-	Longitude float64   `gorm:"not null"`
-	PostID    uint      `gorm:"not null;index"`
-	Url       string    `gorm:"-"`
+	Latitude  float64   `json:"latitude"`  // Убрали not null
+	Longitude float64   `json:"longitude"` // Убрали not null
+	PostID    uint      `gorm:"index"`     // Убрали not null
+	Url       string    `json:"url"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -132,9 +132,9 @@ type MapContent struct {
 // VideoContent represents a video block
 type VideoContent struct {
 	ID        uint      `gorm:"primaryKey"`
-	URL       string    `gorm:"not null"`
+	URL       string    `json:"url"` // Убрали not null
 	Caption   string    `json:"caption"`
-	PostID    uint      `gorm:"not null;index"`
+	PostID    uint      `gorm:"index"` // Убрали not null
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -142,8 +142,8 @@ type VideoContent struct {
 // TableContent represents a table block
 type TableContent struct {
 	ID        uint      `gorm:"primaryKey"`
-	Data      string    `gorm:"type:jsonb;not null"` // JSON строка для хранения таблицы
-	PostID    uint      `gorm:"not null;index"`
+	Data      string    `gorm:"type:jsonb"` // Убрали not null
+	PostID    uint      `gorm:"index"`      // Убрали not null
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -151,8 +151,8 @@ type TableContent struct {
 // TagContent represents tags associated with a post
 type TagContent struct {
 	ID        uint      `gorm:"primaryKey"`
-	Name      string    `gorm:"unique;not null"`
-	PostID    uint      `gorm:"not null;index"`
+	Name      string    `gorm:"unique"` // Убрали not null
+	PostID    uint      `gorm:"index"`  // Убрали not null
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
