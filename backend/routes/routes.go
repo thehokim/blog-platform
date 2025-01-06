@@ -2,6 +2,7 @@ package routes
 
 import (
 	"blog-platform/handlers"
+	"blog-platform/middleware"
 
 	"github.com/gorilla/mux"
 )
@@ -43,21 +44,26 @@ func initUserRoutes(router *mux.Router) {
 	router.HandleFunc("/users/{id:[0-9]+}/avatar", handlers.UploadAvatar).Methods("POST") // Upload avatar
 	router.HandleFunc("/users/{id:[0-9]+}/avatar", handlers.GetAvatar).Methods("GET")     // Get user avatar
 }
+
 func initNotificationRoutes(router *mux.Router) {
 	router.HandleFunc("/notifications", handlers.GetNotifications).Methods("GET") // Получение уведомлений
 	router.HandleFunc("/notifications/{id}/reaction", handlers.ReactToNotification).Methods("POST")
 	router.HandleFunc("/notifications/{id}/reactions", handlers.GetReactionsForNotification).Methods("GET")
-
 }
 
 func initPostRoutes(router *mux.Router) {
+	// Публичные маршруты (не требуют токена)
 	router.HandleFunc("/posts", handlers.GetPosts).Methods("GET")
 	router.HandleFunc("/posts/{id:[0-9]+}", handlers.GetPost).Methods("GET")
-	router.HandleFunc("/posts/{id:[0-9]+}", handlers.UpdatePost).Methods("PUT")
-	router.HandleFunc("/posts/{id:[0-9]+}", handlers.DeletePost).Methods("DELETE")
 	router.HandleFunc("/search", handlers.SearchPosts).Methods("GET")
-	router.HandleFunc("/posts/{id:[0-9]+}/save", handlers.SavePost).Methods("POST")    // Сохранить пост
-	router.HandleFunc("/posts/create", handlers.CreatePostWithContent).Methods("POST") // Новый маршрут
-	router.HandleFunc("/{id:[0-9]+}/like", handlers.LikePost).Methods("POST")          // Лайк постаpost
-	router.HandleFunc("/{id:[0-9]+}/likes", handlers.GetPostLikes).Methods("GET")      // Получение лайков поста
+
+	// Подмаршруты для защищенных запросов, используют middleware
+	authRouter := router.PathPrefix("/posts").Subrouter()
+	authRouter.Use(middleware.AuthMiddleware)                                         // Применяем middleware проверки токена
+	authRouter.HandleFunc("/{id:[0-9]+}", handlers.UpdatePost).Methods("PUT")         // Обновить пост
+	authRouter.HandleFunc("/{id:[0-9]+}", handlers.DeletePost).Methods("DELETE")      // Удалить пост
+	authRouter.HandleFunc("/{id:[0-9]+}/save", handlers.SavePost).Methods("POST")     // Сохранить пост
+	authRouter.HandleFunc("/create", handlers.CreatePostWithContent).Methods("POST")  // Создать пост
+	authRouter.HandleFunc("/{id:[0-9]+}/like", handlers.LikePost).Methods("POST")     // Лайк поста
+	authRouter.HandleFunc("/{id:[0-9]+}/likes", handlers.GetPostLikes).Methods("GET") // Получение лайков поста
 }
