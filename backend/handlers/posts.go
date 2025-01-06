@@ -4,7 +4,6 @@ import (
 	"blog-platform/database"
 	"blog-platform/models"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -45,30 +44,63 @@ func respondWithError(w http.ResponseWriter, statusCode int, message string) {
 	json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
-// CreatePostWithContent - Создание поста с содержимым (пример защищенного маршрута)
 func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
-	// Получение user_id из заголовка (установлено в middleware)
 	userID := r.Header.Get("X-User-ID")
 	if userID == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		respondWithError(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
-	// Обработка данных поста
 	var input struct {
-		Title       string `json:"title"`
-		Description string `json:"description"`
+		Title       string                `json:"title"`
+		Description string                `json:"description"`
+		Tags        []string              `json:"tags"`
+		Tables      []models.TableContent `json:"tableDate"`
+		Images      []models.ImageContent `json:"imageUrl"`
+		Maps        []models.MapContent   `json:"mapUrl"`
+		Videos      []models.VideoContent `json:"videoUrl"`
 	}
+
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
+		respondWithError(w, http.StatusBadRequest, "Invalid input")
 		return
 	}
 
-	// Логика создания поста
-	fmt.Printf("User %s is creating a post: %+v\n", userID, input)
+	// Конвертируем userID в uint
+	userIDUint, err := strconv.ParseUint(userID, 10, 32)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	// Проверяем, существует ли пользователь
+	var user models.User
+	if err := database.DB.First(&user, uint(userIDUint)).Error; err != nil {
+		respondWithError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	post := models.Post{
+		Title:       input.Title,
+		Description: input.Description,
+		Slug:        generateSlug(input.Title),
+		AuthorID:    uint(userIDUint),
+	}
+
+	if err := database.DB.Create(&post).Error; err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to create post")
+		return
+	}
+
+	saveContent(&post, input.Images, input.Maps, input.Videos, input.Tables)
+
+	if err := saveTags(&post, input.Tags); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to save tags")
+		return
+	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Post created successfully"})
+	json.NewEncoder(w).Encode(post)
 }
 
 func saveContent(post *models.Post, images []models.ImageContent, maps []models.MapContent, videos []models.VideoContent, tables []models.TableContent) {
