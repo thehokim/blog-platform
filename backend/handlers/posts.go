@@ -46,6 +46,7 @@ func respondWithError(w http.ResponseWriter, statusCode int, message string) {
 
 func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("X-User-ID")
+	log.Println("Extracted userID from header:", userID)
 	if userID == "" {
 		respondWithError(w, http.StatusUnauthorized, "Unauthorized")
 		return
@@ -69,6 +70,7 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 	// Конвертируем userID в uint
 	userIDUint, err := strconv.ParseUint(userID, 10, 32)
 	if err != nil {
+		log.Println("Faild to parse userId:", userID, "Error:", err)
 		respondWithError(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
@@ -76,9 +78,12 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 	// Проверяем, существует ли пользователь
 	var user models.User
 	if err := database.DB.First(&user, uint(userIDUint)).Error; err != nil {
+		log.Println("User not found in database for ID:", userIDUint, "Error:", err)
 		respondWithError(w, http.StatusNotFound, "User not found")
 		return
 	}
+
+	log.Println("User found in database:", user)
 
 	post := models.Post{
 		Title:       input.Title,

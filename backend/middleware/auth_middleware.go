@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -39,12 +40,14 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok || claims["user_id"] == nil {
+			log.Println("Failed to extract user_id from token claims")
 			http.Error(w, "Failed to parse token claims", http.StatusUnauthorized)
 			return
 		}
 
 		// Сохраняем user_id в заголовок
 		userID := fmt.Sprintf("%v", claims["user_id"])
+		log.Println("Extracted user_id from token:", userID)
 		r.Header.Set("X-User-ID", userID)
 
 		next.ServeHTTP(w, r)
