@@ -25,8 +25,6 @@ func InitRoutes() *mux.Router {
 func initAuthRoutes(router *mux.Router) {
 	router.HandleFunc("/register", handlers.Register).Methods("POST")
 	router.HandleFunc("/login", handlers.Login).Methods("POST")
-	router.HandleFunc("/forgot-password", handlers.ForgotPassword).Methods("POST")
-	router.HandleFunc("/reset-password", handlers.ResetPassword).Methods("POST")
 }
 
 // initCommentRoutes sets up comment-related routes
@@ -39,10 +37,8 @@ func initCommentRoutes(router *mux.Router) {
 
 // initUserRoutes sets up user-related routes
 func initUserRoutes(router *mux.Router) {
-	router.HandleFunc("/users/{id:[0-9]+}", handlers.GetProfile).Methods("GET")           // Get user profile
-	router.HandleFunc("/users/{id:[0-9]+}", handlers.UpdateProfile).Methods("PUT")        // Update user profile
-	router.HandleFunc("/users/{id:[0-9]+}/avatar", handlers.UploadAvatar).Methods("POST") // Upload avatar
-	router.HandleFunc("/users/{id:[0-9]+}/avatar", handlers.GetAvatar).Methods("GET")     // Get user avatar
+	router.HandleFunc("/users/{id:[0-9]+}", handlers.GetProfile).Methods("GET")    // Get user profile
+	router.HandleFunc("/users/{id:[0-9]+}", handlers.UpdateProfile).Methods("PUT") // Update user profile
 }
 
 func initNotificationRoutes(router *mux.Router) {
@@ -66,7 +62,8 @@ func initPostRoutes(router *mux.Router) {
 	authRouter.HandleFunc("/saved-blogs", handlers.GetSavedPosts).Methods("GET")             // Получить сохраненные посты
 	authRouter.HandleFunc("/unsave-post/{id:[0-9]+}", handlers.UnsavePost).Methods("DELETE") // Route for UnsavePost
 	authRouter.HandleFunc("/{id:[0-9]+}/save-status", handlers.SaveStatus).Methods("POST")
-	authRouter.HandleFunc("/create", handlers.CreatePostWithContent).Methods("POST")  // Создать пост
-	authRouter.HandleFunc("/{id:[0-9]+}/like", handlers.LikePost).Methods("POST")     // Лайк поста
-	authRouter.HandleFunc("/{id:[0-9]+}/likes", handlers.GetPostLikes).Methods("GET") // Получение лайков поста
+	authRouter.HandleFunc("/create", handlers.CreatePostWithContent).Methods("POST")        // Создать пост
+	authRouter.HandleFunc("/{id:[0-9]+}/like", handlers.LikePost).Methods("POST")           // Лайк поста
+	authRouter.HandleFunc("/{id:[0-9]+}/likes", handlers.GetPostLikes).Methods("GET")       // Получение лайков поста
+	authRouter.HandleFunc("/posts/{id:[0-9]+}/like", handlers.UnlikePost).Methods("DELETE") // Remove like from a post
 }

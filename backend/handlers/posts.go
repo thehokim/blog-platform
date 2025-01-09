@@ -509,6 +509,30 @@ func GetPostLikes(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int64{"likes": likeCount})
 }
 
+// UnlikePost - Remove a like from a post
+func UnlikePost(w http.ResponseWriter, r *http.Request) {
+	postID, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, "Invalid Post ID format", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
+	if err != nil {
+		http.Error(w, "Invalid User ID format", http.StatusBadRequest)
+		return
+	}
+
+	// Удаляем лайк из базы данных
+	if err := database.DB.Where("user_id = ? AND post_id = ?", userID, postID).Delete(&models.Like{}).Error; err != nil {
+		http.Error(w, "Failed to unlike post", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Post unliked successfully"})
+}
+
 // SearchPosts - Поиск постов
 func SearchPosts(w http.ResponseWriter, r *http.Request) {
 	// Получение параметров из строки запроса

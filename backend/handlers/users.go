@@ -3,11 +3,12 @@ package handlers
 import (
 	"blog-platform/database"
 	"blog-platform/models"
-	"blog-platform/utils" // Ensure this import is here
+	"blog-platform/utils"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -16,6 +17,18 @@ import (
 	"gorm.io/gorm"
 )
 
+// Ensure that the directory for avatars exists
+func ensureAvatarDirectoryExists() error {
+	dir := "uploads/avatars"
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+			return fmt.Errorf("failed to create directory: %w", err)
+		}
+	}
+	return nil
+}
+
+// Register handles user registration
 func Register(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Email    string `json:"email"`
@@ -36,11 +49,6 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
 	if input.Username == "" {
 		input.Username = generateUniqueUsername(input.Email)
-	} else {
-		if err := database.DB.Where("username = ?", input.Username).First(&existingUser).Error; err == nil {
-			http.Error(w, "Username already taken", http.StatusConflict)
-			return
-		}
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
@@ -61,21 +69,100 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate JWT token using the utils package
-	token, err := utils.GenerateJWT(user.ID, user.Username, user.Avatar)
+	token, err := utils.GenerateJWT(user.ID, user.Username, "")
 	if err != nil {
 		http.Error(w, "Error generating token", http.StatusInternalServerError)
-		return
-	}
-
-	if err := database.DB.Model(&user).Update("verification_token", token).Error; err != nil {
-		http.Error(w, "Error saving token", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"token": token, "message": "User registered successfully"})
+}
+
+// GetProfile retrieves the profile information of a user
+func GetProfile(w http.ResponseWriter, r *http.Request) {
+	userID := mux.Vars(r)["id"]
+
+	var user models.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+// Обновление профиля пользователя
+func UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	userID := mux.Vars(r)["id"]
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	firstName := r.FormValue("first_name")
+	lastName := r.FormValue("last_name")
+	bio := r.FormValue("bio")
+	website := r.FormValue("website")
+
+	if firstName == "" || lastName == "" || bio == "" || website == "" {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
+
+	// Проверяем файл аватара
+	file, handler, err := r.FormFile("avatar")
+	var avatarPath string
+	if err == nil {
+		defer file.Close()
+
+		// Убедимся, что директория для аватаров существует
+		if err := ensureAvatarDirectoryExists(); err != nil {
+			http.Error(w, "Failed to create directory for avatar", http.StatusInternalServerError)
+			fmt.Println("Error creating directory:", err)
+			return
+		}
+
+		// Сохраняем аватар в директорию
+		avatarPath = fmt.Sprintf("uploads/avatars/%d_%s", time.Now().UnixNano(), handler.Filename)
+		out, err := os.Create(avatarPath)
+		if err != nil {
+			http.Error(w, "Failed to save avatar", http.StatusInternalServerError)
+			fmt.Println("Error saving avatar:", err)
+			return
+		}
+		defer out.Close()
+		if _, err := io.Copy(out, file); err != nil {
+			http.Error(w, "Failed to save avatar", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Обновляем данные пользователя в базе
+	var user models.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	user.FirstName = firstName
+	user.LastName = lastName
+	user.Bio = bio
+	user.Website = website
+	if avatarPath != "" {
+		user.Avatar = avatarPath
+	}
+
+	if err := database.DB.Save(&user).Error; err != nil {
+		http.Error(w, "Failed to update profile", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
 }
 
 // Helper function to generate unique usernames based on email
@@ -85,142 +172,11 @@ func generateUniqueUsername(email string) string {
 	var count int
 	for {
 		var existingUser models.User
-		if err := database.DB.Where("username = ?", username).First(&existingUser).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+		if err := database.DB.Where("username = ?", username).First(&existingUser).Error; err == gorm.ErrRecordNotFound {
 			break
 		}
 		count++
 		username = fmt.Sprintf("%s%d", base, count)
 	}
 	return username
-}
-
-// ForgotPassword handles the password reset request
-func ForgotPassword(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Email string `json:"email"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-		return
-	}
-
-	// Find user by email
-	var user models.User
-	if err := database.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	// Generate a reset token
-	token := fmt.Sprintf("%x", time.Now().UnixNano())
-	user.ResetToken = token
-	user.ResetTokenExpires = time.Now().Add(1 * time.Hour)
-	if err := database.DB.Save(&user).Error; err != nil {
-		http.Error(w, "Failed to generate reset token", http.StatusInternalServerError)
-		return
-	}
-
-	// Send reset link (replace with actual email sending)
-	resetLink := fmt.Sprintf("http://localhost:8080/reset-password?token=%s", token)
-	fmt.Printf("Reset link: %s\n", resetLink)
-
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintln(w, `{"message": "Password reset link sent"}`)
-}
-
-// ResetPassword handles setting a new password
-func ResetPassword(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Token    string `json:"token"`
-		Password string `json:"password"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-		return
-	}
-
-	// Find user by reset token
-	var user models.User
-	if err := database.DB.Where("reset_token = ? AND reset_token_expires > ?", input.Token, time.Now()).First(&user).Error; err != nil {
-		http.Error(w, "Invalid or expired token", http.StatusBadRequest)
-		return
-	}
-
-	// Update password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
-	if err != nil {
-		http.Error(w, "Error hashing password", http.StatusInternalServerError)
-		return
-	}
-	user.Password = string(hashedPassword)
-	user.ResetToken = ""
-	user.ResetTokenExpires = time.Time{}
-
-	if err := database.DB.Save(&user).Error; err != nil {
-		http.Error(w, "Failed to reset password", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintln(w, `{"message": "Password successfully reset"}`)
-}
-
-// GetProfile retrieves the profile information of a user
-func GetProfile(w http.ResponseWriter, r *http.Request) {
-	// Получаем ID пользователя из URL
-	userID := mux.Vars(r)["id"]
-
-	// Находим пользователя в базе данных
-	var user models.User
-	if err := database.DB.First(&user, userID).Error; err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	// Возвращаем профиль пользователя
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
-}
-
-// UpdateProfile updates the profile information of a user
-func UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	// Получаем ID пользователя из URL
-	userID := mux.Vars(r)["id"]
-
-	// Ищем пользователя в базе данных
-	var user models.User
-	if err := database.DB.First(&user, userID).Error; err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	// Обновляем данные профиля из запроса
-	var updatedData struct {
-		FirstName string `json:"first_name"`
-		LastName  string `json:"last_name"`
-		Bio       string `json:"bio"`
-		Website   string `json:"website"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&updatedData); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-		return
-	}
-
-	// Применяем изменения
-	user.FirstName = updatedData.FirstName
-	user.LastName = updatedData.LastName
-	user.Bio = updatedData.Bio
-	user.Website = updatedData.Website
-
-	// Сохраняем изменения в базе данных
-	if err := database.DB.Save(&user).Error; err != nil {
-		http.Error(w, "Failed to update profile", http.StatusInternalServerError)
-		return
-	}
-
-	// Возвращаем обновленный профиль
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
 }
