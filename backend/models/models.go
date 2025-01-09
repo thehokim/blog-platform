@@ -96,7 +96,14 @@ type SavedPost struct {
 	ID        uint `gorm:"primaryKey"`
 	UserID    uint `gorm:"not null;index"`
 	PostID    uint `gorm:"not null;index"`
+	Post      Post `gorm:"foreignKey:PostID"`
 	CreatedAt time.Time
+}
+
+type SaveStatus struct {
+	ID       uint `gorm:"primaryKey"`
+	UserID   uint
+	StatusID uint
 }
 
 // TextContent represents a block of text content
@@ -124,7 +131,6 @@ type MapContent struct {
 	Latitude  float64   `json:"latitude"`  // Убрали not null
 	Longitude float64   `json:"longitude"` // Убрали not null
 	PostID    uint      `gorm:"index"`     // Убрали not null
-	Url       string    `json:"url"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -142,8 +148,8 @@ type VideoContent struct {
 // TableContent represents a table block
 type TableContent struct {
 	ID        uint      `gorm:"primaryKey"`
-	Data      string    `gorm:"type:jsonb"` // Убрали not null
-	PostID    uint      `gorm:"index"`      // Убрали not null
+	Data      string    `gorm:"type:jsonb" json:"data"` // Поле для данных таблицы
+	PostID    uint      `gorm:"index" json:"post_id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

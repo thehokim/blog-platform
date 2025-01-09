@@ -4,16 +4,21 @@ import (
 	"blog-platform/database"
 	"blog-platform/models"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 )
 
+// GenerateSlug - Генерация уникального slug для поста
 func generateSlug(title string) string {
 	slug := strings.ToLower(strings.Map(func(r rune) rune {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' {
@@ -39,56 +44,121 @@ func generateSlug(title string) string {
 	return slug
 }
 
+// RespondWithError - Удобная обработка ошибок
 func respondWithError(w http.ResponseWriter, statusCode int, message string) {
+	log.Printf("Error: %s (status: %d)", message, statusCode)
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
 func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("X-User-ID")
-	log.Println("Extracted userID from header:", userID)
 	if userID == "" {
 		respondWithError(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
-	var input struct {
-		Title       string                `json:"title"`
-		Description string                `json:"description"`
-		Tags        []string              `json:"tags"`
-		Tables      []models.TableContent `json:"tableDate"`
-		Images      []models.ImageContent `json:"imageUrl"`
-		Maps        []models.MapContent   `json:"mapUrl"`
-		Videos      []models.VideoContent `json:"videoUrl"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid input")
+	// Парсим form-data
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Failed to parse form-data")
 		return
 	}
 
-	// Конвертируем userID в uint
+	title := r.FormValue("title")
+	description := r.FormValue("description")
+	tags := r.Form["tags"]
+
+	// Создаем директорию для изображений
+	if _, err := os.Stat("uploads/images"); os.IsNotExist(err) {
+		if err := os.MkdirAll("uploads/images", os.ModePerm); err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Failed to create directory for images")
+			return
+		}
+	}
+
+	// Сохраняем изображения
+	var images []models.ImageContent
+	if imageFiles, ok := r.MultipartForm.File["images"]; ok {
+		for _, fileHeader := range imageFiles {
+			file, err := fileHeader.Open()
+			if err != nil {
+				log.Println("Failed to open image file:", err)
+				continue
+			}
+			defer file.Close()
+
+			filePath := fmt.Sprintf("uploads/images/%d_%s", time.Now().Unix(), fileHeader.Filename)
+			out, err := os.Create(filePath)
+			if err != nil {
+				log.Println("Failed to create image file:", err)
+				continue
+			}
+			defer out.Close()
+
+			if _, err = io.Copy(out, file); err != nil {
+				log.Println("Failed to save image file:", err)
+				continue
+			}
+
+			images = append(images, models.ImageContent{
+				URL:     filePath,
+				AltText: fileHeader.Filename,
+			})
+		}
+	}
+
+	// Парсим JSON для maps
+	var maps []models.MapContent
+	if mapData := r.FormValue("maps"); mapData != "" {
+		if err := json.Unmarshal([]byte(mapData), &maps); err != nil {
+			log.Println("Failed to parse maps:", err)
+		}
+	}
+
+	// Парсим JSON для videos
+	var videos []models.VideoContent
+	if videoData := r.FormValue("videos"); videoData != "" {
+		if err := json.Unmarshal([]byte(videoData), &videos); err != nil {
+			log.Println("Failed to parse videos:", err)
+		}
+	}
+
+	// Извлечение таблиц
+	var tables []models.TableContent
+	tableData := r.FormValue("tables")
+	if tableData != "" && tableData != "null" { // Проверка на "null"
+		if err := json.Unmarshal([]byte(tableData), &tables); err != nil {
+			log.Println("Failed to parse tables:", err)
+		} else {
+			log.Println("Parsed tables:", tables)
+		}
+	}
+
+	// Устанавливаем пустой JSON по умолчанию для таблиц с отсутствующими данными
+	for i, table := range tables {
+		if table.Data == "" {
+			tables[i].Data = "{}" // Устанавливаем пустой JSON по умолчанию
+		}
+	}
+
+	// Проверяем пользователя
 	userIDUint, err := strconv.ParseUint(userID, 10, 32)
 	if err != nil {
-		log.Println("Faild to parse userId:", userID, "Error:", err)
 		respondWithError(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
 
-	// Проверяем, существует ли пользователь
 	var user models.User
 	if err := database.DB.First(&user, uint(userIDUint)).Error; err != nil {
-		log.Println("User not found in database for ID:", userIDUint, "Error:", err)
 		respondWithError(w, http.StatusNotFound, "User not found")
 		return
 	}
 
-	log.Println("User found in database:", user)
-
+	// Создаем пост
 	post := models.Post{
-		Title:       input.Title,
-		Description: input.Description,
-		Slug:        generateSlug(input.Title),
+		Title:       title,
+		Description: description,
+		Slug:        generateSlug(title),
 		AuthorID:    uint(userIDUint),
 	}
 
@@ -97,40 +167,56 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	saveContent(&post, input.Images, input.Maps, input.Videos, input.Tables)
-
-	if err := saveTags(&post, input.Tags); err != nil {
+	// Сохраняем данные
+	saveContent(&post, images, maps, videos, tables)
+	if err := saveTags(&post, tags); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to save tags")
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(post)
+	// Возвращаем ответ
+	response := map[string]interface{}{
+		"id":          post.ID,
+		"title":       post.Title,
+		"description": post.Description,
+		"tags":        tags,
+		"images":      images,
+		"maps":        maps,
+		"videos":      videos,
+		"tables":      tables,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func saveContent(post *models.Post, images []models.ImageContent, maps []models.MapContent, videos []models.VideoContent, tables []models.TableContent) {
 	for _, image := range images {
 		image.PostID = post.ID
 		if err := database.DB.Create(&image).Error; err != nil {
+			log.Println("Failed to save image:", err)
 			continue
 		}
 	}
 	for _, mapContent := range maps {
 		mapContent.PostID = post.ID
 		if err := database.DB.Create(&mapContent).Error; err != nil {
+			log.Println("Failed to save map:", err)
 			continue
 		}
 	}
 	for _, video := range videos {
 		video.PostID = post.ID
 		if err := database.DB.Create(&video).Error; err != nil {
+			log.Println("Failed to save video:", err)
 			continue
 		}
 	}
 	for _, table := range tables {
 		table.PostID = post.ID
 		if err := database.DB.Create(&table).Error; err != nil {
-			continue
+			log.Println("Failed to save table:", err)
+		} else {
+			log.Println("Table saved successfully:", table)
 		}
 	}
 }
@@ -175,7 +261,7 @@ func formatTableData(tables []models.TableContent) []map[string]interface{} {
 	for _, table := range tables {
 		var parsedTable map[string]interface{}
 		if err := json.Unmarshal([]byte(table.Data), &parsedTable); err != nil {
-			log.Printf("Failed to parse table content: %v", err)
+			log.Printf("Failed to parse table content for table ID %d: %v", table.ID, err)
 			continue
 		}
 		formattedTables = append(formattedTables, parsedTable)
@@ -327,7 +413,7 @@ func UpdatePost(w http.ResponseWriter, r *http.Request) {
 		Title       string                `json:"title"`
 		Description string                `json:"description"`
 		Tags        []string              `json:"tags"`
-		Tables      []models.TableContent `json:"tableDate"`
+		Tables      []models.TableContent `json:"tableData"`
 		Images      []models.ImageContent `json:"imageUrl"`
 		Maps        []models.MapContent   `json:"mapUrl"`
 		Videos      []models.VideoContent `json:"videoUrl"`
@@ -486,6 +572,23 @@ func SavePost(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Post saved successfully"})
 }
 
+func GetSavedPosts(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
+	if err != nil {
+		http.Error(w, "Invalid User ID", http.StatusBadRequest)
+		return
+	}
+
+	var savedPosts []models.SavedPost
+	if err := database.DB.Where("user_id = ?", userID).Preload("Post").Find(&savedPosts).Error; err != nil {
+		http.Error(w, "Failed to retrieve saved posts", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(savedPosts)
+}
+
 // UnsavePost - Удаление из сохраненных постов
 func UnsavePost(w http.ResponseWriter, r *http.Request) {
 	postID, err := strconv.Atoi(mux.Vars(r)["id"])
@@ -508,4 +611,28 @@ func UnsavePost(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "Post unsaved successfully"})
+}
+
+// SaveStatus - Проверить статус сохранения
+func SaveStatus(w http.ResponseWriter, r *http.Request) {
+	postID, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, "Invalid Post ID", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
+	if err != nil {
+		http.Error(w, "Invalid User ID", http.StatusBadRequest)
+		return
+	}
+
+	var savedPost models.SavedPost
+	if err := database.DB.Where("user_id = ? AND post_id = ?", userID, postID).First(&savedPost).Error; err != nil {
+		http.Error(w, "Post not saved", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Post is saved"})
 }

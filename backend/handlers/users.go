@@ -3,6 +3,7 @@ package handlers
 import (
 	"blog-platform/database"
 	"blog-platform/models"
+	"blog-platform/utils" // Ensure this import is here
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,13 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
-// Register handles user registration
 func Register(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Email    string `json:"email"`
@@ -62,13 +61,13 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := generateJWT(user.ID)
+	// Generate JWT token using the utils package
+	token, err := utils.GenerateJWT(user.ID, user.Username, user.Avatar)
 	if err != nil {
 		http.Error(w, "Error generating token", http.StatusInternalServerError)
 		return
 	}
 
-	// Update the user record with the verification token
 	if err := database.DB.Model(&user).Update("verification_token", token).Error; err != nil {
 		http.Error(w, "Error saving token", http.StatusInternalServerError)
 		return
@@ -79,14 +78,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"token": token, "message": "User registered successfully"})
 }
 
-func generateJWT(userID uint) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(24 * time.Hour).Unix(),
-	})
-	return token.SignedString(secretKey)
-}
-
+// Helper function to generate unique usernames based on email
 func generateUniqueUsername(email string) string {
 	base := strings.Split(email, "@")[0]
 	username := base

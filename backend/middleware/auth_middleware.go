@@ -11,7 +11,7 @@ import (
 
 var secretKey = []byte("YOUR_SECRET_KEY")
 
-// AuthMiddleware проверяет наличие и валидность токена
+// AuthMiddleware checks the presence and validity of the token
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
@@ -20,12 +20,14 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// Extract the token from the Authorization header
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		if tokenString == authHeader {
 			http.Error(w, "Invalid token format", http.StatusUnauthorized)
 			return
 		}
 
+		// Parse the token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method")
@@ -38,6 +40,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// Extract claims from the token
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok || claims["user_id"] == nil {
 			log.Println("Failed to extract user_id from token claims")
@@ -45,11 +48,22 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Сохраняем user_id в заголовок
+		// Save user information from the token into the request header
 		userID := fmt.Sprintf("%v", claims["user_id"])
-		log.Println("Extracted user_id from token:", userID)
-		r.Header.Set("X-User-ID", userID)
+		username := fmt.Sprintf("%v", claims["username"])
+		avatar := fmt.Sprintf("%v", claims["avatar"])
 
+		// Log extracted user information
+		log.Println("Extracted user_id:", userID)
+		log.Println("Extracted username:", username)
+		log.Println("Extracted avatar:", avatar)
+
+		// Set user information in request header
+		r.Header.Set("X-User-ID", userID)
+		r.Header.Set("X-Username", username)
+		r.Header.Set("X-Avatar", avatar)
+
+		// Proceed with the next handler
 		next.ServeHTTP(w, r)
 	})
 }

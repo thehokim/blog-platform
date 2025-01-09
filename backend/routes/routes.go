@@ -59,10 +59,13 @@ func initPostRoutes(router *mux.Router) {
 
 	// Подмаршруты для защищенных запросов, используют middleware
 	authRouter := router.PathPrefix("/posts").Subrouter()
-	authRouter.Use(middleware.AuthMiddleware)                                         // Применяем middleware проверки токена
-	authRouter.HandleFunc("/{id:[0-9]+}", handlers.UpdatePost).Methods("PUT")         // Обновить пост
-	authRouter.HandleFunc("/{id:[0-9]+}", handlers.DeletePost).Methods("DELETE")      // Удалить пост
-	authRouter.HandleFunc("/{id:[0-9]+}/save", handlers.SavePost).Methods("POST")     // Сохранить пост
+	authRouter.Use(middleware.AuthMiddleware)                                                // Применяем middleware проверки токена
+	authRouter.HandleFunc("/{id:[0-9]+}", handlers.UpdatePost).Methods("PUT")                // Обновить пост
+	authRouter.HandleFunc("/{id:[0-9]+}", handlers.DeletePost).Methods("DELETE")             // Удалить пост
+	authRouter.HandleFunc("/{id:[0-9]+}/save", handlers.SavePost).Methods("POST")            // Сохранить пост
+	authRouter.HandleFunc("/saved-blogs", handlers.GetSavedPosts).Methods("GET")             // Получить сохраненные посты
+	authRouter.HandleFunc("/unsave-post/{id:[0-9]+}", handlers.UnsavePost).Methods("DELETE") // Route for UnsavePost
+	authRouter.HandleFunc("/{id:[0-9]+}/save-status", handlers.SaveStatus).Methods("POST")
 	authRouter.HandleFunc("/create", handlers.CreatePostWithContent).Methods("POST")  // Создать пост
 	authRouter.HandleFunc("/{id:[0-9]+}/like", handlers.LikePost).Methods("POST")     // Лайк поста
 	authRouter.HandleFunc("/{id:[0-9]+}/likes", handlers.GetPostLikes).Methods("GET") // Получение лайков поста
