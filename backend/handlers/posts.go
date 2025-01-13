@@ -456,6 +456,41 @@ func DeletePost(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// SearchPosts - Поиск постов
+func SearchPosts(w http.ResponseWriter, r *http.Request) {
+	// Получение параметров из строки запроса
+	search := r.URL.Query().Get("search") // Для текстового поиска
+	tag := r.URL.Query().Get("tag")       // Для фильтрации по тегу
+
+	var posts []models.Post
+
+	// Создаем базовый запрос с предзагрузкой зависимостей
+	query := database.DB.Preload("Tags").
+		Preload("Author").
+		Preload("TableData").
+		Preload("Images").
+		Preload("Maps").
+		Preload("Videos")
+
+	// Фильтрация по ключевому слову (title или description)
+	if search != "" {
+		query = query.Where("title ILIKE ? OR description ILIKE ?", "%"+search+"%", "%"+search+"%")
+	}
+
+	// Фильтрация по тегу
+	if tag != "" {
+		query = query.Joins("JOIN post_tags ON posts.id = post_tags.post_id").
+			Joins("JOIN tags ON post_tags.tag_id = tags.id").
+			Where("tags.name = ?", tag)
+	}
+
+	// Выполняем запрос
+	if err := query.Find(&posts).Error; err != nil {
+		http.Error(w, "Failed to fetch posts", http.StatusInternalServerError)
+		return
+	}
+}
+
 // LikePost - Add a like to a post
 func LikePost(w http.ResponseWriter, r *http.Request) {
 	postID, err := strconv.Atoi(mux.Vars(r)["id"])
@@ -491,7 +526,6 @@ func LikePost(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Post liked successfully"})
 }
 
-// GetPostLikes - Retrieve the number of likes for a post
 func GetPostLikes(w http.ResponseWriter, r *http.Request) {
 	postID, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
@@ -499,14 +533,33 @@ func GetPostLikes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
+	if err != nil {
+		http.Error(w, "Invalid User ID format", http.StatusBadRequest)
+		return
+	}
+
 	var likeCount int64
+	// Считаем количество лайков для поста
 	if err := database.DB.Model(&models.Like{}).Where("post_id = ?", postID).Count(&likeCount).Error; err != nil {
 		http.Error(w, "Failed to fetch like count", http.StatusInternalServerError)
 		return
 	}
 
+	var isLiked bool
+	// Проверяем, лайкнул ли пользователь этот пост
+	if err := database.DB.Model(&models.Like{}).Where("post_id = ? AND user_id = ?", postID, userID).First(&models.Like{}).Error; err == nil {
+		isLiked = true
+	} else {
+		isLiked = false
+	}
+
+	// Возвращаем количество лайков и статус лайка
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]int64{"likes": likeCount})
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"likes":   likeCount,
+		"isLiked": isLiked,
+	})
 }
 
 // UnlikePost - Remove a like from a post
@@ -531,41 +584,6 @@ func UnlikePost(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "Post unliked successfully"})
-}
-
-// SearchPosts - Поиск постов
-func SearchPosts(w http.ResponseWriter, r *http.Request) {
-	// Получение параметров из строки запроса
-	search := r.URL.Query().Get("search") // Для текстового поиска
-	tag := r.URL.Query().Get("tag")       // Для фильтрации по тегу
-
-	var posts []models.Post
-
-	// Создаем базовый запрос с предзагрузкой зависимостей
-	query := database.DB.Preload("Tags").
-		Preload("Author").
-		Preload("TableData").
-		Preload("Images").
-		Preload("Maps").
-		Preload("Videos")
-
-	// Фильтрация по ключевому слову (title или description)
-	if search != "" {
-		query = query.Where("title ILIKE ? OR description ILIKE ?", "%"+search+"%", "%"+search+"%")
-	}
-
-	// Фильтрация по тегу
-	if tag != "" {
-		query = query.Joins("JOIN post_tags ON posts.id = post_tags.post_id").
-			Joins("JOIN tags ON post_tags.tag_id = tags.id").
-			Where("tags.name = ?", tag)
-	}
-
-	// Выполняем запрос
-	if err := query.Find(&posts).Error; err != nil {
-		http.Error(w, "Failed to fetch posts", http.StatusInternalServerError)
-		return
-	}
 }
 
 // SavePost - Сохранение поста
