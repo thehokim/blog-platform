@@ -61,7 +61,7 @@ func initPostRoutes(router *mux.Router) {
 	authRouter.HandleFunc("/{id:[0-9]+}", handlers.DeletePost).Methods("DELETE")             // Удалить пост
 	authRouter.HandleFunc("/{id:[0-9]+}/save", handlers.SavePost).Methods("POST")            // Сохранить пост
 	authRouter.HandleFunc("/{id:[0-9]+}/saved-blogs", handlers.GetSavedPosts).Methods("GET") // Получить сохраненные посты
-	authRouter.HandleFunc("/unsave-post/{id:[0-9]+}", handlers.UnsavePost).Methods("DELETE") // Route for UnsavePost
+	authRouter.HandleFunc("/{id:[0-9]+}/save", handlers.UnsavePost).Methods("DELETE")        // Route for UnsavePost
 	authRouter.HandleFunc("/{id:[0-9]+}/save-status", handlers.SaveStatus).Methods("POST")
 	authRouter.HandleFunc("/create", handlers.CreatePostWithContent).Methods("POST")  // Создать пост
 	authRouter.HandleFunc("/{id:[0-9]+}/like", handlers.LikePost).Methods("POST")     // Лайк поста

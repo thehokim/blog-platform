@@ -627,8 +627,18 @@ func GetSavedPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Добавляем информацию isSaved для каждого поста
+	response := []map[string]interface{}{}
+	for _, savedPost := range savedPosts {
+		response = append(response, map[string]interface{}{
+			"post_id": savedPost.PostID,
+			"isSaved": true,           // так как это список сохранённых постов
+			"post":    savedPost.Post, // детали поста
+		})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(savedPosts)
+	json.NewEncoder(w).Encode(response)
 }
 
 // UnsavePost - Удаление из сохраненных постов
@@ -655,7 +665,6 @@ func UnsavePost(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Post unsaved successfully"})
 }
 
-// SaveStatus - Проверить статус сохранения
 func SaveStatus(w http.ResponseWriter, r *http.Request) {
 	postID, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
@@ -670,11 +679,20 @@ func SaveStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var savedPost models.SavedPost
-	if err := database.DB.Where("user_id = ? AND post_id = ?", userID, postID).First(&savedPost).Error; err != nil {
-		http.Error(w, "Post not saved", http.StatusNotFound)
+	if err := database.DB.Where("user_id = ? AND post_id = ?", userID, postID).First(&savedPost).Error; err == nil {
+		// Если пост сохранён
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"post_id": postID,
+			"isSaved": true,
+		})
 		return
 	}
 
+	// Если пост не сохранён
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "Post is saved"})
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"post_id": postID,
+		"isSaved": false,
+	})
 }
