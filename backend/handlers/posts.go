@@ -4,7 +4,6 @@ import (
 	"blog-platform/database"
 	"blog-platform/models"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -666,7 +665,6 @@ func UnsavePost(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Post unsaved successfully"})
 }
 
-// SaveStatus - Проверить статус сохранения
 func SaveStatus(w http.ResponseWriter, r *http.Request) {
 	postID, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
@@ -681,16 +679,20 @@ func SaveStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var savedPost models.SavedPost
-	if err := database.DB.Where("user_id = ? AND post_id = ?", userID, postID).First(&savedPost).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// Если пост не сохранён, возвращаем 404
-			http.Error(w, "Post not saved", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "Failed to fetch save status", http.StatusInternalServerError)
+	if err := database.DB.Where("user_id = ? AND post_id = ?", userID, postID).First(&savedPost).Error; err == nil {
+		// Если пост сохранён
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"post_id": postID,
+			"isSaved": true,
+		})
 		return
 	}
 
+	// Если пост не сохранён
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "Post is saved"})
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"post_id": postID,
+		"isSaved": false,
+	})
 }
