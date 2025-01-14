@@ -4,6 +4,7 @@ import (
 	"blog-platform/database"
 	"blog-platform/models"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -694,5 +695,48 @@ func SaveStatus(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"post_id": postID,
 		"isSaved": false,
+	})
+}
+
+func jsonResponse(w http.ResponseWriter, statusCode int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(data)
+}
+
+func GetSaveStatus(w http.ResponseWriter, r *http.Request) {
+	// Parse Post ID
+	postID, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		jsonResponse(w, http.StatusBadRequest, map[string]string{"error": "Invalid Post ID"})
+		return
+	}
+
+	// Parse User ID from query parameters
+	userIDStr := r.URL.Query().Get("user_id")
+	if userIDStr == "" {
+		jsonResponse(w, http.StatusBadRequest, map[string]string{"error": "User ID is required"})
+		return
+	}
+
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		jsonResponse(w, http.StatusBadRequest, map[string]string{"error": "Invalid User ID"})
+		return
+	}
+
+	// Check if the post is saved
+	var savedPost models.SavedPost
+	err = database.DB.Where("user_id = ? AND post_id = ?", userID, postID).First(&savedPost).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		jsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Internal Server Error"})
+		return
+	}
+
+	// Respond with saved status
+	isSaved := err == nil
+	jsonResponse(w, http.StatusOK, map[string]interface{}{
+		"post_id": postID,
+		"isSaved": isSaved,
 	})
 }
