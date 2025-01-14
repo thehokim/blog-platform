@@ -623,18 +623,26 @@ func GetSavedPosts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var savedPosts []models.SavedPost
-	if err := database.DB.Where("user_id = ?", userID).Preload("Post").Find(&savedPosts).Error; err != nil {
+	// Загрузка сохранённых постов вместе с автором поста
+	if err := database.DB.Where("user_id = ?", userID).
+		Preload("Post.Author"). // Загрузка данных автора поста
+		Find(&savedPosts).Error; err != nil {
 		http.Error(w, "Failed to retrieve saved posts", http.StatusInternalServerError)
 		return
 	}
 
-	// Добавляем информацию isSaved для каждого поста
+	// Форматирование ответа
 	response := []map[string]interface{}{}
 	for _, savedPost := range savedPosts {
 		response = append(response, map[string]interface{}{
-			"post_id": savedPost.PostID,
-			"isSaved": true,           // так как это список сохранённых постов
-			"post":    savedPost.Post, // детали поста
+			"post_id":     savedPost.PostID,
+			"isSaved":     true, // так как это сохранённый пост
+			"title":       savedPost.Post.Title,
+			"description": savedPost.Post.Description,
+			"author": map[string]interface{}{
+				"name":     savedPost.Post.Author.Username, // Имя автора
+				"imageUrl": savedPost.Post.Author.Avatar,   // Аватар автора
+			},
 		})
 	}
 
