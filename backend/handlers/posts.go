@@ -623,9 +623,14 @@ func GetSavedPosts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var savedPosts []models.SavedPost
-	// Загрузка сохранённых постов вместе с автором поста
+	// Загружаем сохранённые посты вместе с их автором и другими связанными данными
 	if err := database.DB.Where("user_id = ?", userID).
-		Preload("Post.Author"). // Загрузка данных автора поста
+		Preload("Post.Author").    // Загрузка данных автора
+		Preload("Post.Tags").      // Загрузка тегов поста
+		Preload("Post.Images").    // Загрузка изображений поста
+		Preload("Post.Videos").    // Загрузка видео поста
+		Preload("Post.Maps").      // Загрузка карт поста
+		Preload("Post.TableData"). // Загрузка таблиц поста
 		Find(&savedPosts).Error; err != nil {
 		http.Error(w, "Failed to retrieve saved posts", http.StatusInternalServerError)
 		return
@@ -634,16 +639,44 @@ func GetSavedPosts(w http.ResponseWriter, r *http.Request) {
 	// Форматирование ответа
 	response := []map[string]interface{}{}
 	for _, savedPost := range savedPosts {
-		response = append(response, map[string]interface{}{
-			"post_id":     savedPost.PostID,
-			"isSaved":     true, // так как это сохранённый пост
-			"title":       savedPost.Post.Title,
-			"description": savedPost.Post.Description,
+		post := savedPost.Post
+		formattedPost := map[string]interface{}{
+			"post_id":     post.ID,
+			"title":       post.Title,
+			"description": post.Description,
+			"date":        post.Date.Format("2006-01-02 15:04:05"),
+			"tags":        extractTagNames(post.Tags),
+			"imageUrl": func() []string {
+				var images []string
+				for _, img := range post.Images {
+					images = append(images, img.URL)
+				}
+				return images
+			}(),
+			"videoUrl": func() []string {
+				var videos []string
+				for _, v := range post.Videos {
+					videos = append(videos, v.URL)
+				}
+				return videos
+			}(),
+			"mapUrl": func() []map[string]float64 {
+				var maps []map[string]float64
+				for _, m := range post.Maps {
+					maps = append(maps, map[string]float64{
+						"latitude":  m.Latitude,
+						"longitude": m.Longitude,
+					})
+				}
+				return maps
+			}(),
+			"tableData": formatTableData(post.TableData),
 			"author": map[string]interface{}{
-				"name":     savedPost.Post.Author.Username, // Имя автора
-				"imageUrl": savedPost.Post.Author.Avatar,   // Аватар автора
+				"name":     post.Author.Username,
+				"imageUrl": post.Author.Avatar,
 			},
-		})
+		}
+		response = append(response, formattedPost)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
