@@ -16,6 +16,10 @@ func main() {
 	// Create a new router
 	router := routes.InitRoutes()
 
+	// Serve static files for avatars
+	fs := http.FileServer(http.Dir("./uploads"))
+	router.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", fs))
+
 	// Configure CORS
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000"},        // Your frontend URL
