@@ -1,3 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import 'react-quill/dist/quill.snow.css';
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -11,3 +16,353 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+/* Стили для ползунка с зелёной точкой */
+.custom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #d1d5db;
+  height: 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background-color: #10b981;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.custom-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background-color: #10b981;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.custom-slider:active::-webkit-slider-thumb,
+.custom-slider:active::-moz-range-thumb {
+  background-color: #059669;
+}
+
+.custom-editor .ql-toolbar {
+  border-radius: 0.375rem;
+  background-color: #f9fafb; /* светлый фон панели инструментов */
+  transition: background-color 0.3s ease;
+}
+
+.custom-editor .ql-toolbar .ql-picker {
+  color: #4a5568; /* цвет текста опций */
+}
+
+.custom-editor .ql-container {
+  border: none;
+  font-family: 'Arial', sans-serif;
+  font-size: 1rem;
+}
+
+.custom-editor .ql-container.ql-snow {
+  padding: 1rem;
+}
+
+.custom-editor .ql-container .ql-editor {
+  min-height: 150px;
+}
+
+.custom-editor .ql-toolbar .ql-picker.ql-active {
+  color: #2b6cb0; /* цвет активных элементов */
+}
+
+.dark .custom-editor .ql-toolbar {
+  background-color: #2d3748; /* темный фон для панели инструментов */
+  color: #e2e8f0; /* светлый текст для темного режима */
+}
+.ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value='8px']::before {
+  content: '8';
+}
+.ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value='10px']::before {
+  content: '10';
+}
+.ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value='12px']::before {
+  content: '12';
+}
+.ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value='14px']::before {
+  content: '14';
+}
+.ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value='16px']::before {
+  content: '16';
+}
+.ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value='18px']::before {
+  content: '18';
+}
+.ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value='20px']::before {
+  content: '20';
+}
+.ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value='22px']::before {
+  content: '22';
+}
+.ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value='24px']::before {
+  content: '24';
+}
+.ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value='26px']::before {
+  content: '26';
+}
+
+.ql-toolbar .ql-picker.ql-size .ql-picker-label::before {
+  content: attr(data-label); /* Show selected label */
+}
+
+.ql-toolbar .ql-picker.ql-size .ql-picker-options {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+
+
+.your-class-name {
+  word-wrap: break-word; /* Перенос слов */
+  overflow-wrap: break-word; /* Современный вариант переноса */
+  white-space: pre-wrap; /* Сохраняет переносы строк, но обрезает длинный текст */
+  overflow: hidden; /* Обрезает текст за пределами контейнера */
+  text-overflow: ellipsis; /* Добавляет "..." при обрезке текста */
+}
+
+.resizable-box {
+  border: 1px dashed #ccc;
+  padding: 0.5rem;
+  background-color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.parent-container {
+  max-width: 100%; /* Ограничивает ширину контейнера */
+  overflow: hidden; /* Скроет содержимое, выходящее за границы */
+}
+
+.comment-text {
+  max-width: 1000px; /* Установите ограничение ширины */
+  white-space: nowrap; /* Запрет на перенос строк */
+  overflow: hidden; /* Обрезка текста */
+  text-overflow: ellipsis; /* Добавление многоточия для длинного текста */
+}
+
+.comment-text-multiline {
+  max-width: 1000px; /* Установите ограничение ширины */
+  overflow: hidden; /* Обрезка текста */
+  display: -webkit-box; /* Включение блока для ограничения строк */
+  -webkit-box-orient: vertical; /* Вертикальная ориентация */
+}
+
+/* Добавьте в ваш CSS-файл */
+.fade-in {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-in-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fade-out {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-out-active {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* Общий стиль для выпадающего меню */
+.ql-picker {
+  position: relative;
+  z-index: 1000; /* Убедитесь, что элемент отображается поверх других */
+}
+
+.ql-picker-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.ql-picker-label:hover {
+  background-color: #f0f0f0;
+}
+
+/* Стили выпадающего меню */
+.ql-picker-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: white;
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  z-index: 1010;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+
+/* Стили элементов выпадающего списка */
+.ql-picker-item {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 14px;
+}
+
+.ql-picker-item:hover {
+  background-color: #f0f0f0;
+}
+
+/* Применение шрифтов к элементам */
+.ql-font-sans-serif {
+  font-family: 'sans-serif';
+}
+
+.ql-font-serif {
+  font-family: 'serif';
+}
+
+.ql-font-monospace {
+  font-family: 'monospace';
+}
+
+.ql-font-times-new-roman {
+  font-family: 'Times New Roman', Times, serif;
+}
+
+.ql-font-arial {
+  font-family: 'Arial', sans-serif;
+}
+
+.ql-font-courier-new {
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.ql-font-georgia {
+  font-family: 'Georgia', serif;
+}
+
+.ql-font-helvetica {
+  font-family: 'Helvetica', sans-serif;
+}
+
+.ql-font-tahoma {
+  font-family: 'Tahoma', sans-serif;
+}
+
+.ql-font-verdana {
+  font-family: 'Verdana', sans-serif;
+}
+
+.ql-font-calibri {
+  font-family: 'Calibri', sans-serif;
+}
+
+.ql-font-cambria {
+  font-family: 'Cambria', serif;
+}
+
+.ql-font-garamond {
+  font-family: 'Garamond', serif;
+}
+
+.ql-font-impact {
+  font-family: 'Impact', sans-serif;
+}
+
+.ql-font-lucida {
+  font-family: 'Lucida', sans-serif;
+}
+
+.ql-font-palatino {
+  font-family: 'Palatino', serif;
+}
+
+
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='sans-serif']::before {
+  content: 'Sans Serif';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='serif']::before {
+  content: 'Serif';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='monospace']::before {
+  content: 'Monospace';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='times-new-roman']::before {
+  content: 'Times New Roman';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='arial']::before {
+  content: 'Arial';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='courier-new']::before {
+  content: 'Courier New';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='georgia']::before {
+  content: 'Georgia';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='helvetica']::before {
+  content: 'Helvetica';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='tahoma']::before {
+  content: 'Tahoma';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='verdana']::before {
+  content: 'Verdana';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='calibri']::before {
+  content: 'Calibri';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='cambria']::before {
+  content: 'Cambria';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='garamond']::before {
+  content: 'Garamond';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='impact']::before {
+  content: 'Impact';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='lucida']::before {
+  content: 'Lucida';
+}
+.ql-toolbar .ql-picker.ql-font .ql-picker-item[data-value='palatino']::before {
+  content: 'Palatino';
+}
+
+/* Добавляем текст для выбранного шрифта */
+.ql-toolbar .ql-picker.ql-font .ql-picker-label::before {
+  content: attr(data-label); /* Показываем выбранный шрифт */
+}
+
+/* Стили выпадающего списка */
+.ql-toolbar .ql-picker.ql-font .ql-picker-options {
+  max-height: 200px;
+  overflow-y: auto;
+}
+.custom-editor {
+  max-width: 1100px; /* Максимальная ширина редактора */
+  word-wrap: break-word; /* Перенос слов */
+  overflow-wrap: break-word; /* Перенос длинных слов */
+  white-space: normal; /* Разрешить перенос строк */
+  margin: 0 auto; /* Центрировать редактор */
+}
+
