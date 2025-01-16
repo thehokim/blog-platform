@@ -158,7 +158,7 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Сохраняем пользователя в базе данных (пример)
-	// database.DB.Save(&user)
+	database.DB.Save(&user)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)

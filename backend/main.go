@@ -20,11 +20,12 @@ func main() {
 	fs := http.FileServer(http.Dir("./uploads"))
 	router.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", fs))
 
-	// Configure CORS
+	// Configure CORS to allow both localhost:3000 and Ngrok URL
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"},        // Your frontend URL
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"}, // Allowed HTTP methods
-		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowedOrigins: []string{"*"},                             // Frontend and Ngrok URL
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},  // Allowed HTTP methods
+		AllowedHeaders: []string{"Content-Type", "Authorization"}, // Allowed headers
+
 		AllowCredentials: true, // Allow cookies/auth credentials
 	}).Handler(router)
 
