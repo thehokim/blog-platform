@@ -23,25 +23,32 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
+		respondWithError(w, http.StatusBadRequest, "Invalid input: "+err.Error())
 		return
 	}
 
-	// Проверка, существует ли уже такой username
+	if input.Username == "" {
+		respondWithError(w, http.StatusBadRequest, "Username is required")
+		return
+	}
+
+	if input.Password == "" {
+		respondWithError(w, http.StatusBadRequest, "Password is required")
+		return
+	}
+
 	var existingUser models.User
 	if err := database.DB.Where("username = ?", input.Username).First(&existingUser).Error; err == nil {
-		http.Error(w, "Username is already taken", http.StatusConflict)
+		respondWithError(w, http.StatusConflict, "Username is already taken")
 		return
 	}
 
-	// Хэшируем пароль перед сохранением
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		http.Error(w, "Error hashing password", http.StatusInternalServerError)
+		respondWithError(w, http.StatusInternalServerError, "Error hashing password: "+err.Error())
 		return
 	}
 
-	// Создаем нового пользователя
 	user := models.User{
 		Username: input.Username,
 		Password: string(hashedPassword),
@@ -49,20 +56,21 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := database.DB.Create(&user).Error; err != nil {
-		http.Error(w, "Error creating user", http.StatusInternalServerError)
+		respondWithError(w, http.StatusInternalServerError, "Error creating user: "+err.Error())
 		return
 	}
 
-	// Генерируем JWT токен
 	token, err := utils.GenerateJWT(user.ID, user.Username, "")
 	if err != nil {
-		http.Error(w, "Error generating token", http.StatusInternalServerError)
+		respondWithError(w, http.StatusInternalServerError, "Error generating token: "+err.Error())
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"token": token, "message": "User registered successfully"})
+	json.NewEncoder(w).Encode(map[string]string{
+		"token":   token,
+		"message": "User registered successfully",
+	})
 }
 
 func GetProfile(w http.ResponseWriter, r *http.Request) {
