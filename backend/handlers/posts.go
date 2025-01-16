@@ -88,7 +88,7 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 			}
 			defer file.Close()
 
-			filePath := fmt.Sprintf("uploads/images/%d_%s", time.Now().Unix(), fileHeader.Filename)
+			filePath := fmt.Sprintf("/uploads/images/%d_%s", time.Now().Unix(), fileHeader.Filename)
 			out, err := os.Create(filePath)
 			if err != nil {
 				log.Println("Failed to create image file:", err)
