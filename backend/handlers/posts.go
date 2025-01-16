@@ -20,7 +20,7 @@ import (
 )
 
 // GenerateSlug - Генерация уникального slug для поста
-func generateSlug(username string) string {
+func generateSlug(title string) string {
 	slug := strings.ToLower(strings.Map(func(r rune) rune {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' {
 			return r
@@ -29,7 +29,7 @@ func generateSlug(username string) string {
 			return '-'
 		}
 		return -1
-	}, username))
+	}, title))
 
 	var post models.Post
 	baseSlug := slug
@@ -59,7 +59,6 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Парсим form-data
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		respondWithError(w, http.StatusBadRequest, "Failed to parse form-data")
 		return
@@ -69,15 +68,13 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 	description := r.FormValue("description")
 	tags := r.Form["tags"]
 
-	// Создаем директорию для изображений
-	if _, err := os.Stat("uploads/images"); os.IsNotExist(err) {
-		if err := os.MkdirAll("uploads/images", os.ModePerm); err != nil {
-			respondWithError(w, http.StatusInternalServerError, "Failed to create directory for images")
-			return
-		}
+	// ✅ Создаём директорию, если её нет
+	if err := ensureDirectoryExists("uploads/images"); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to create image directory")
+		return
 	}
 
-	// Сохраняем изображения
+	// ✅ Сохранение изображений
 	var images []models.ImageContent
 	if imageFiles, ok := r.MultipartForm.File["images"]; ok {
 		for _, fileHeader := range imageFiles {
@@ -88,7 +85,8 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 			}
 			defer file.Close()
 
-			filePath := fmt.Sprintf("/uploads/images/%d_%s", time.Now().Unix(), fileHeader.Filename)
+			// ✅ Генерация уникального пути к файлу
+			filePath := fmt.Sprintf("uploads/images/%d_%s", time.Now().UnixNano(), fileHeader.Filename)
 			out, err := os.Create(filePath)
 			if err != nil {
 				log.Println("Failed to create image file:", err)
@@ -101,8 +99,11 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
+			log.Println("Image saved successfully:", filePath)
+
+			// ✅ Добавляем путь изображения в массив (убираем `.` для корректного URL)
 			images = append(images, models.ImageContent{
-				URL:     filePath,
+				URL:     "/" + filePath,
 				AltText: fileHeader.Filename,
 			})
 		}
@@ -155,7 +156,7 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Создаем пост
+	// ✅ Создаём пост
 	post := models.Post{
 		Title:       title,
 		Description: description,
@@ -168,14 +169,19 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Сохраняем данные
-	saveContent(&post, images, maps, videos, tables)
-	if err := saveTags(&post, tags); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Failed to save tags")
-		return
+	// ✅ Сохраняем изображения в БД
+	if len(images) > 0 {
+		for i := range images {
+			images[i].PostID = post.ID // Привязываем изображение к посту
+		}
+		if err := database.DB.Create(&images).Error; err != nil {
+			log.Println("Failed to save images in DB:", err)
+		} else {
+			log.Println("Images saved successfully in DB")
+		}
 	}
 
-	// Возвращаем ответ
+	// ✅ Возвращаем ответ с загруженными изображениями
 	response := map[string]interface{}{
 		"id":          post.ID,
 		"title":       post.Title,
@@ -188,6 +194,14 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// ✅ Функция для проверки и создания директории
+func ensureDirectoryExists(dir string) error {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return os.MkdirAll(dir, os.ModePerm)
+	}
+	return nil
 }
 
 func saveContent(post *models.Post, images []models.ImageContent, maps []models.MapContent, videos []models.VideoContent, tables []models.TableContent) {

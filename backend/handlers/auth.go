@@ -3,17 +3,16 @@ package handlers
 import (
 	"blog-platform/database"
 	"blog-platform/models"
-	"blog-platform/utils" // Import the utils package for JWT and other helpers
+	"blog-platform/utils"
 	"encoding/json"
 	"net/http"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Login authenticates the user and generates a JWT token
 func Login(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Email    string `json:"email"`
+		Username string `json:"username"`
 		Password string `json:"password"`
 	}
 
@@ -22,39 +21,38 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Find user by email
+	// Поиск пользователя по `username`
 	var user models.User
-	if err := database.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
-		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+	if err := database.DB.Where("username = ?", input.Username).First(&user).Error; err != nil {
+		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		return
 	}
 
-	// Check password validity
+	// Проверка пароля
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
-		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		return
 	}
 
-	// Generate JWT token with user data
-	token, err := utils.GenerateJWT(user.ID, user.Username, user.Avatar) // JWT creation moved to utils
+	// Генерация JWT токена
+	token, err := utils.GenerateJWT(user.ID, user.Username, user.Avatar)
 	if err != nil {
 		http.Error(w, "Failed to create token", http.StatusInternalServerError)
 		return
 	}
 
-	// Save the token (optional)
+	// Сохранение токена (опционально)
 	if err := database.DB.Model(&user).Update("verification_token", token).Error; err != nil {
 		http.Error(w, "Failed to save token", http.StatusInternalServerError)
 		return
 	}
 
-	// Send the token and user ID in the response
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"token": token,
 		"user": map[string]interface{}{
 			"id":   user.ID,
-			"name": user.Username, // или user.Name, если в вашей модели так называется поле
+			"name": user.Username,
 		},
 	})
 }
