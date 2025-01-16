@@ -92,74 +92,103 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
-// Обновление профиля пользователя
 func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	userID := mux.Vars(r)["id"]
 
+	// Parse the form data (allowing up to 10 MB for file uploads)
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		http.Error(w, "Invalid form data", http.StatusBadRequest)
 		return
 	}
 
-	firstName := r.FormValue("first_name")
-	lastName := r.FormValue("last_name")
-	bio := r.FormValue("bio")
-	website := r.FormValue("website")
-
-	if firstName == "" || lastName == "" || bio == "" || website == "" {
-		http.Error(w, "Missing required fields", http.StatusBadRequest)
+	// Fetch the user from the database
+	var user models.User
+	id, err := strconv.Atoi(userID)
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
 
-	// Проверяем файл аватара
-	file, handler, err := r.FormFile("avatar")
-	var avatarPath string
-	if err == nil {
-		defer file.Close()
-
-		// Создаем директорию, если не существует
-		if err := ensureAvatarDirectoryExists(); err != nil {
-			http.Error(w, "Failed to create directory for avatar", http.StatusInternalServerError)
-			fmt.Println("Error creating directory:", err)
-			return
-		}
-
-		// Генерируем уникальное имя файла
-		avatarPath = fmt.Sprintf("./uploads/avatars/%d_%s", time.Now().UnixNano(), handler.Filename)
-		out, err := os.Create(avatarPath)
-		if err != nil {
-			http.Error(w, "Failed to save avatar", http.StatusInternalServerError)
-			fmt.Println("Error saving avatar:", err)
-			return
-		}
-		defer out.Close()
-		if _, err := io.Copy(out, file); err != nil {
-			http.Error(w, "Failed to save avatar", http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// Обновляем данные пользователя в базе
-	var user models.User
-	id, _ := strconv.Atoi(userID)
-	// Здесь используйте вашу базу данных. Этот блок — пример.
-	if id <= 0 { // В реальной базе проверьте существование пользователя
+	if err := database.DB.First(&user, id).Error; err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
 
-	user.ID = uint(id)
-	user.FirstName = firstName
-	user.LastName = lastName
-	user.Bio = bio
-	user.Website = website
-	if avatarPath != "" {
-		user.Avatar = avatarPath[1:] // Убираем точку для корректного URL
+	// Prepare data for updates
+	updates := make(map[string]interface{})
+
+	// Update first_name if provided
+	if firstName := r.FormValue("first_name"); firstName != "" {
+		updates["first_name"] = firstName
 	}
 
-	// Сохраняем пользователя в базе данных (пример)
-	database.DB.Save(&user)
+	// Update last_name if provided
+	if lastName := r.FormValue("last_name"); lastName != "" {
+		updates["last_name"] = lastName
+	}
 
+	// Update bio if provided
+	if bio := r.FormValue("bio"); bio != "" {
+		updates["bio"] = bio
+	}
+
+	// Update website if provided
+	if website := r.FormValue("website"); website != "" {
+		updates["website"] = website
+	}
+
+	// Update email if provided (with uniqueness check)
+	if email := r.FormValue("email"); email != "" {
+		var existingUser models.User
+		if err := database.DB.Where("email = ?", email).First(&existingUser).Error; err == nil && existingUser.ID != user.ID {
+			http.Error(w, "Email is already in use", http.StatusConflict)
+			return
+		}
+		updates["email"] = email
+	}
+
+	// Update avatar if a file is uploaded
+	if file, handler, err := r.FormFile("avatar"); err == nil {
+		defer file.Close()
+
+		// Ensure avatar directory exists
+		if err := ensureAvatarDirectoryExists(); err != nil {
+			http.Error(w, "Failed to create directory for avatar", http.StatusInternalServerError)
+			return
+		}
+
+		// Generate a unique avatar file name
+		avatarPath := fmt.Sprintf("./uploads/avatars/%d_%s", time.Now().UnixNano(), handler.Filename)
+		out, err := os.Create(avatarPath)
+		if err != nil {
+			http.Error(w, "Failed to save avatar", http.StatusInternalServerError)
+			return
+		}
+		defer out.Close()
+
+		// Save the avatar file
+		if _, err := io.Copy(out, file); err != nil {
+			http.Error(w, "Failed to save avatar", http.StatusInternalServerError)
+			return
+		}
+
+		// Store the avatar path in updates
+		updates["avatar"] = avatarPath[1:] // Remove leading dot for URL compatibility
+	}
+
+	// Update username if email is updated
+	if email, ok := updates["email"].(string); ok {
+		username := generateUniqueUsername(email)
+		updates["username"] = username
+	}
+
+	// Apply the updates to the user
+	if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
+		http.Error(w, "Failed to update user", http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with the updated user data
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
