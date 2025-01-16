@@ -20,7 +20,7 @@ import (
 )
 
 // GenerateSlug - Генерация уникального slug для поста
-func generateSlug(title string) string {
+func generateSlug(username string) string {
 	slug := strings.ToLower(strings.Map(func(r rune) rune {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' {
 			return r
@@ -29,7 +29,7 @@ func generateSlug(title string) string {
 			return '-'
 		}
 		return -1
-	}, title))
+	}, username))
 
 	var post models.Post
 	baseSlug := slug
