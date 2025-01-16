@@ -9,9 +9,8 @@ type User struct {
 	LastName          string    `json:"last_name,omitempty"`
 	Bio               string    `json:"bio,omitempty"`
 	Website           string    `json:"website,omitempty"`
-	Username          string    `json:"username,omitempty" gorm:"unique;default:null"` // Позволяем NULL для уникального значения
+	Username          string    `json:"username,omitempty" gorm:"unique;not null"`
 	Avatar            string    `json:"avatar,omitempty"`
-	Email             string    `json:"email" gorm:"unique;not null"`
 	Password          string    `json:"-" gorm:"not null"`
 	IsActive          bool      `json:"is_active"`
 	VerificationToken string    `gorm:"default:null" json:"verification_token,omitempty"`
