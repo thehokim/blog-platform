@@ -286,20 +286,18 @@ func GetPosts(w http.ResponseWriter, r *http.Request) {
 	log.Println("GetPosts called")
 
 	var posts []models.Post
-	// Загрузка постов вместе со связанными данными
 	if err := database.DB.Preload("Tags").
 		Preload("Author").
-		Preload("Images").    // Загрузка связанных изображений
-		Preload("Videos").    // Загрузка связанных видео
-		Preload("Maps").      // Загрузка связанных карт
-		Preload("TableData"). // Загрузка связанных таблиц
+		Preload("Images").
+		Preload("Videos").
+		Preload("Maps").
+		Preload("TableData").
 		Find(&posts).Error; err != nil {
 		log.Printf("Database error: %v", err)
 		respondWithError(w, http.StatusInternalServerError, "Failed to fetch posts")
 		return
 	}
 
-	// Форматирование и отправка данных клиенту
 	var formattedPosts []map[string]interface{}
 	for _, post := range posts {
 		formattedPost := map[string]interface{}{
@@ -307,7 +305,15 @@ func GetPosts(w http.ResponseWriter, r *http.Request) {
 			"title":       post.Title,
 			"description": post.Description,
 			"date":        post.Date,
-			"tags":        post.Tags,
+			"tags": func() []map[string]string {
+				var tags []map[string]string
+				for _, tag := range post.Tags {
+					tags = append(tags, map[string]string{
+						"Name": tag.Name,
+					})
+				}
+				return tags
+			}(),
 			"images": func() []string {
 				var images []string
 				for _, img := range post.Images {
@@ -353,25 +359,31 @@ func GetPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var post models.Post
-	// Загрузка поста вместе со связанными данными
 	if err := database.DB.Preload("Tags").
 		Preload("Author").
-		Preload("Images").    // Загрузка связанных изображений
-		Preload("Videos").    // Загрузка связанных видео
-		Preload("Maps").      // Загрузка связанных карт
-		Preload("TableData"). // Загрузка связанных таблиц
+		Preload("Images").
+		Preload("Videos").
+		Preload("Maps").
+		Preload("TableData").
 		First(&post, id).Error; err != nil {
 		respondWithError(w, http.StatusNotFound, "Post not found")
 		return
 	}
 
-	// Форматирование и отправка данных клиенту
 	formattedPost := map[string]interface{}{
 		"id":          post.ID,
 		"title":       post.Title,
 		"description": post.Description,
 		"date":        post.Date,
-		"tags":        post.Tags,
+		"tags": func() []map[string]string {
+			var tags []map[string]string
+			for _, tag := range post.Tags {
+				tags = append(tags, map[string]string{
+					"Name": tag.Name,
+				})
+			}
+			return tags
+		}(),
 		"images": func() []string {
 			var images []string
 			for _, img := range post.Images {
