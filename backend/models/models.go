@@ -144,20 +144,10 @@ type VideoContent struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// TableContent represents a table block
 type TableContent struct {
 	ID        uint      `gorm:"primaryKey"`
-	Data      string    `gorm:"type:jsonb" json:"data"` // Поле для данных таблицы
-	PostID    uint      `gorm:"index" json:"post_id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-// TagContent represents tags associated with a post
-type TagContent struct {
-	ID        uint      `gorm:"primaryKey"`
-	Name      string    `gorm:"unique"` // Убрали not null
-	PostID    uint      `gorm:"index"`  // Убрали not null
+	Data      string    `gorm:"type:jsonb" json:"data"`
+	PostID    uint      `gorm:"index;constraint:OnDelete:CASCADE,OnUpdate:CASCADE" json:"post_id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

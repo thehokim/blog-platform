@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -19,7 +20,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// GenerateSlug - Генерация уникального slug для поста
+// Генерация slug
 func generateSlug(title string) string {
 	slug := strings.ToLower(strings.Map(func(r rune) rune {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' {
@@ -38,21 +39,23 @@ func generateSlug(title string) string {
 		if err := database.DB.Where("slug = ?", slug).First(&post).Error; err == gorm.ErrRecordNotFound {
 			break
 		}
-		slug = baseSlug + "-" + strconv.Itoa(counter)
+		slug = fmt.Sprintf("%s-%d", baseSlug, counter)
 		counter++
 	}
-
 	return slug
 }
 
-// RespondWithError - Удобная обработка ошибок
+// Функция обработки ошибок
 func respondWithError(w http.ResponseWriter, statusCode int, message string) {
 	log.Printf("Error: %s (status: %d)", message, statusCode)
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
+// Создание поста
 func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
+	log.Println("Processing new post request")
+
 	userID := r.Header.Get("X-User-ID")
 	if userID == "" {
 		respondWithError(w, http.StatusUnauthorized, "Unauthorized")
@@ -66,15 +69,32 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 
 	title := r.FormValue("title")
 	description := r.FormValue("description")
-	tags := r.Form["tags"]
 
-	// ✅ Создаём директорию, если её нет
-	if err := ensureDirectoryExists("uploads/images"); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Failed to create image directory")
+	log.Println("Received post data:", title, description)
+
+	userIDUint, err := strconv.ParseUint(userID, 10, 32)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
 
-	// ✅ Сохранение изображений
+	// Создаём объект Post
+	post := models.Post{
+		Title:       title,
+		Description: description,
+		Slug:        generateSlug(title),
+		AuthorID:    uint(userIDUint),
+	}
+
+	// Сохраняем пост в базу
+	if err := database.DB.Create(&post).Error; err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to create post")
+		return
+	}
+
+	log.Printf("Post created successfully with ID: %d\n", post.ID)
+
+	// **Обработка изображений**
 	var images []models.ImageContent
 	if imageFiles, ok := r.MultipartForm.File["images"]; ok {
 		for _, fileHeader := range imageFiles {
@@ -85,8 +105,14 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 			}
 			defer file.Close()
 
-			// ✅ Генерация уникального пути к файлу
-			filePath := fmt.Sprintf("uploads/images/%d_%s", time.Now().UnixNano(), fileHeader.Filename)
+			// Создаём папку, если её нет
+			uploadDir := "uploads/images"
+			os.MkdirAll(uploadDir, os.ModePerm)
+
+			// Удаляем пробелы из имени файла
+			safeFileName := strings.ReplaceAll(fileHeader.Filename, " ", "_")
+			filePath := filepath.Join(uploadDir, fmt.Sprintf("%d_%s", time.Now().UnixNano(), safeFileName))
+
 			out, err := os.Create(filePath)
 			if err != nil {
 				log.Println("Failed to create image file:", err)
@@ -101,143 +127,110 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 
 			log.Println("Image saved successfully:", filePath)
 
-			// ✅ Добавляем путь изображения в массив (убираем `.` для корректного URL)
 			images = append(images, models.ImageContent{
 				URL:     "/" + filePath,
+				PostID:  post.ID,
 				AltText: fileHeader.Filename,
 			})
 		}
 	}
 
-	// Парсим JSON для maps
+	// **Обработка карт**
 	var maps []models.MapContent
-	if mapData := r.FormValue("maps"); mapData != "" {
-		if err := json.Unmarshal([]byte(mapData), &maps); err != nil {
-			log.Println("Failed to parse maps:", err)
+	rawMaps := r.FormValue("maps")
+	if rawMaps != "" && rawMaps != "null" {
+		if err := json.Unmarshal([]byte(rawMaps), &maps); err == nil {
+			for i := range maps {
+				maps[i].PostID = post.ID
+			}
 		}
 	}
 
-	// Парсим JSON для videos
+	// **Обработка видео**
 	var videos []models.VideoContent
-	if videoData := r.FormValue("videos"); videoData != "" {
-		if err := json.Unmarshal([]byte(videoData), &videos); err != nil {
-			log.Println("Failed to parse videos:", err)
+	rawVideos := r.FormValue("videos")
+	if rawVideos != "" && rawVideos != "null" {
+		if err := json.Unmarshal([]byte(rawVideos), &videos); err == nil {
+			for i := range videos {
+				videos[i].PostID = post.ID
+			}
 		}
 	}
 
-	// Извлечение таблиц
+	// **Обработка таблиц**
 	var tables []models.TableContent
-	tableData := r.FormValue("tables")
-	if tableData != "" && tableData != "null" { // Проверка на "null"
-		if err := json.Unmarshal([]byte(tableData), &tables); err != nil {
-			log.Println("Failed to parse tables:", err)
-		} else {
-			log.Println("Parsed tables:", tables)
+	rawTables := r.FormValue("tables")
+	if rawTables != "" && rawTables != "null" {
+		if err := json.Unmarshal([]byte(rawTables), &tables); err == nil {
+			for i := range tables {
+				tables[i].PostID = post.ID
+			}
 		}
 	}
 
-	// Устанавливаем пустой JSON по умолчанию для таблиц с отсутствующими данными
-	for i, table := range tables {
-		if table.Data == "" {
-			tables[i].Data = "{}" // Устанавливаем пустой JSON по умолчанию
+	var tagNames []string
+	rawTags := r.FormValue("tags")
+
+	if rawTags != "" && rawTags != "null" {
+		if err := json.Unmarshal([]byte(rawTags), &tagNames); err != nil {
+			log.Println("Failed to parse tags:", err)
 		}
+	} else {
+		log.Println("No tags provided")
 	}
 
-	// Проверяем пользователя
-	userIDUint, err := strconv.ParseUint(userID, 10, 32)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid user ID")
-		return
-	}
+	// **Сохранение данных в БД**
+	saveContent(&post, images, maps, videos, tables)
+	saveTags(&post, tagNames) // Передаем `[]string`
 
-	var user models.User
-	if err := database.DB.First(&user, uint(userIDUint)).Error; err != nil {
-		respondWithError(w, http.StatusNotFound, "User not found")
-		return
-	}
+	// **Загружаем пост с изображениями и тегами**
+	database.DB.Preload("Images").Preload("Tags").First(&post, post.ID)
 
-	// ✅ Создаём пост
-	post := models.Post{
-		Title:       title,
-		Description: description,
-		Slug:        generateSlug(title),
-		AuthorID:    uint(userIDUint),
-	}
-
-	if err := database.DB.Create(&post).Error; err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Failed to create post")
-		return
-	}
-
-	// ✅ Сохраняем изображения в БД
-	if len(images) > 0 {
-		for i := range images {
-			images[i].PostID = post.ID // Привязываем изображение к посту
-		}
-		if err := database.DB.Create(&images).Error; err != nil {
-			log.Println("Failed to save images in DB:", err)
-		} else {
-			log.Println("Images saved successfully in DB")
-		}
-	}
-
-	// ✅ Возвращаем ответ с загруженными изображениями
+	// **Формируем ответ**
 	response := map[string]interface{}{
 		"id":          post.ID,
 		"title":       post.Title,
 		"description": post.Description,
-		"tags":        tags,
-		"images":      images,
+		"tags":        post.Tags,
+		"images":      post.Images,
 		"maps":        maps,
 		"videos":      videos,
 		"tables":      tables,
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
-// ✅ Функция для проверки и создания директории
-func ensureDirectoryExists(dir string) error {
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return os.MkdirAll(dir, os.ModePerm)
-	}
-	return nil
-}
-
+// **Сохранение зависимого контента**
 func saveContent(post *models.Post, images []models.ImageContent, maps []models.MapContent, videos []models.VideoContent, tables []models.TableContent) {
-	for _, image := range images {
-		image.PostID = post.ID
-		if err := database.DB.Create(&image).Error; err != nil {
-			log.Println("Failed to save image:", err)
-			continue
-		}
+	log.Println("Saving content to database")
+
+	if len(images) > 0 {
+		database.DB.Create(&images)
 	}
-	for _, mapContent := range maps {
-		mapContent.PostID = post.ID
-		if err := database.DB.Create(&mapContent).Error; err != nil {
-			log.Println("Failed to save map:", err)
-			continue
-		}
+	if len(maps) > 0 {
+		database.DB.Create(&maps)
 	}
-	for _, video := range videos {
-		video.PostID = post.ID
-		if err := database.DB.Create(&video).Error; err != nil {
-			log.Println("Failed to save video:", err)
-			continue
-		}
+	if len(videos) > 0 {
+		database.DB.Create(&videos)
 	}
-	for _, table := range tables {
-		table.PostID = post.ID
-		if err := database.DB.Create(&table).Error; err != nil {
-			log.Println("Failed to save table:", err)
-		} else {
-			log.Println("Table saved successfully:", table)
-		}
+	if len(tables) > 0 {
+		database.DB.Create(&tables)
 	}
 }
 
-func saveTags(post *models.Post, tagNames []string) error {
+// **Сохранение тегов**
+func saveTags(post *models.Post, tagNames []string) {
+	if len(tagNames) == 0 {
+		log.Println("No tags to save")
+		return
+	}
+
 	var existingTags []models.Tag
+	var newTags []models.Tag
+
+	// Проверяем, какие теги уже существуют в БД
 	database.DB.Where("name IN ?", tagNames).Find(&existingTags)
 
 	existingTagMap := make(map[string]models.Tag)
@@ -245,23 +238,27 @@ func saveTags(post *models.Post, tagNames []string) error {
 		existingTagMap[tag.Name] = tag
 	}
 
-	var newTags []models.Tag
+	// Создаем новые теги, если их нет в БД
 	for _, tagName := range tagNames {
 		if _, exists := existingTagMap[tagName]; !exists {
 			newTags = append(newTags, models.Tag{Name: tagName})
 		}
 	}
 
+	// Добавляем новые теги в БД
 	if len(newTags) > 0 {
-		if err := database.DB.Create(&newTags).Error; err != nil {
-			return err
-		}
+		database.DB.Create(&newTags)
 	}
 
+	// Объединяем старые и новые теги
 	allTags := append(existingTags, newTags...)
-	return database.DB.Model(post).Association("Tags").Replace(allTags)
+
+	// Привязываем теги к посту через Many-to-Many
+	database.DB.Model(post).Association("Tags").Replace(allTags)
+	log.Println("Tags saved successfully:", tagNames)
 }
 
+// **Извлечение имен тегов**
 func extractTagNames(tags []models.Tag) []string {
 	var tagNames []string
 	for _, tag := range tags {
@@ -310,15 +307,15 @@ func GetPosts(w http.ResponseWriter, r *http.Request) {
 			"title":       post.Title,
 			"description": post.Description,
 			"date":        post.Date,
-			"tags":        extractTagNames(post.Tags),
-			"imageUrl": func() []string {
+			"tags":        post.Tags,
+			"images": func() []string {
 				var images []string
 				for _, img := range post.Images {
 					images = append(images, img.URL)
 				}
 				return images
 			}(),
-			"mapUrl": func() []map[string]float64 {
+			"maps": func() []map[string]float64 {
 				var maps []map[string]float64
 				for _, m := range post.Maps {
 					maps = append(maps, map[string]float64{
@@ -328,14 +325,14 @@ func GetPosts(w http.ResponseWriter, r *http.Request) {
 				}
 				return maps
 			}(),
-			"videoUrl": func() []string {
+			"videos": func() []string {
 				var videos []string
 				for _, v := range post.Videos {
 					videos = append(videos, v.URL)
 				}
 				return videos
 			}(),
-			"tableData": formatTableData(post.TableData),
+			"tables": formatTableData(post.TableData),
 			"author": map[string]string{
 				"name":     post.Author.Username,
 				"imageUrl": post.Author.Avatar,
@@ -374,15 +371,15 @@ func GetPost(w http.ResponseWriter, r *http.Request) {
 		"title":       post.Title,
 		"description": post.Description,
 		"date":        post.Date,
-		"tags":        extractTagNames(post.Tags),
-		"imageUrl": func() []string {
+		"tags":        post.Tags,
+		"images": func() []string {
 			var images []string
 			for _, img := range post.Images {
 				images = append(images, img.URL)
 			}
 			return images
 		}(),
-		"mapUrl": func() []map[string]float64 {
+		"maps": func() []map[string]float64 {
 			var maps []map[string]float64
 			for _, m := range post.Maps {
 				maps = append(maps, map[string]float64{
@@ -392,14 +389,14 @@ func GetPost(w http.ResponseWriter, r *http.Request) {
 			}
 			return maps
 		}(),
-		"videoUrl": func() []string {
+		"videos": func() []string {
 			var videos []string
 			for _, v := range post.Videos {
 				videos = append(videos, v.URL)
 			}
 			return videos
 		}(),
-		"tableData": formatTableData(post.TableData),
+		"tables": formatTableData(post.TableData),
 		"author": map[string]string{
 			"name":     post.Author.Username,
 			"imageUrl": post.Author.Avatar,
@@ -440,11 +437,6 @@ func UpdatePost(w http.ResponseWriter, r *http.Request) {
 
 	post.Title = input.Title
 	post.Description = input.Description
-
-	if err := saveTags(&post, input.Tags); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Failed to update tags")
-		return
-	}
 
 	if err := database.DB.Save(&post).Error; err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to update post")
@@ -659,7 +651,7 @@ func GetSavedPosts(w http.ResponseWriter, r *http.Request) {
 			"title":       post.Title,
 			"description": post.Description,
 			"date":        post.Date.Format("2006-01-02 15:04:05"),
-			"tags":        extractTagNames(post.Tags),
+			"tags":        post.Tags,
 			"imageUrl": func() []string {
 				var images []string
 				for _, img := range post.Images {
