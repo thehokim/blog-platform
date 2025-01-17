@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -134,7 +135,11 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if file, handler, err := r.FormFile("avatar"); err == nil {
 		defer file.Close()
 
-		avatarPath := fmt.Sprintf("./uploads/avatars/%d_%s", time.Now().UnixNano(), handler.Filename)
+		// Replace spaces with underscores in filename
+		safeFilename := strings.ReplaceAll(handler.Filename, " ", "_")
+		avatarPath := fmt.Sprintf("./uploads/avatars/%d_%s", time.Now().UnixNano(), safeFilename)
+
+		// Create file on disk
 		out, err := os.Create(avatarPath)
 		if err != nil {
 			http.Error(w, "Failed to save avatar", http.StatusInternalServerError)
@@ -142,12 +147,14 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		}
 		defer out.Close()
 
+		// Write file content
 		if _, err := io.Copy(out, file); err != nil {
 			http.Error(w, "Failed to save avatar", http.StatusInternalServerError)
 			return
 		}
 
-		updates["avatar"] = avatarPath[1:] // Убираем `.` перед путем
+		// Save relative path for the client
+		updates["avatar"] = avatarPath[1:] // Remove leading dot for URL
 	}
 
 	// Применяем обновления
