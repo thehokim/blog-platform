@@ -157,13 +157,21 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// **Обработка таблиц**
 	var tables []models.TableContent
 	rawTables := r.FormValue("tables")
+	log.Println("📥 Полученные таблицы:", rawTables) // ✅ Логируем входные данные
+
 	if rawTables != "" && rawTables != "null" {
-		if err := json.Unmarshal([]byte(rawTables), &tables); err == nil {
-			for i := range tables {
-				tables[i].PostID = post.ID
+		var receivedTables []map[string]interface{}
+		if err := json.Unmarshal([]byte(rawTables), &receivedTables); err != nil {
+			log.Println(" Ошибка парсинга таблиц:", err)
+		} else {
+			for _, table := range receivedTables {
+				tableJSON, _ := json.Marshal(table) // Преобразуем в JSON строку
+				tables = append(tables, models.TableContent{
+					PostID: post.ID,
+					Data:   string(tableJSON),
+				})
 			}
 		}
 	}
@@ -273,12 +281,13 @@ func formatTableData(tables []models.TableContent) []map[string]interface{} {
 	for _, table := range tables {
 		var parsedTable map[string]interface{}
 		if err := json.Unmarshal([]byte(table.Data), &parsedTable); err != nil {
-			log.Printf("Failed to parse table content for table ID %d: %v", table.ID, err)
+			log.Printf("❌ Ошибка парсинга таблицы ID %d: %v", table.ID, err)
 			continue
 		}
 		formattedTables = append(formattedTables, parsedTable)
 	}
 
+	log.Println("📤 Отправляем таблицы:", formattedTables) // ✅ Логируем перед отправкой
 	return formattedTables
 }
 
@@ -349,9 +358,9 @@ func GetPosts(w http.ResponseWriter, r *http.Request) {
 				}
 				return videos
 			}(),
-			"tables": func() []map[string]interface{} {
+			"tables": func() interface{} {
 				if len(post.TableData) == 0 {
-					return []map[string]interface{}{}
+					return nil
 				}
 				return formatTableData(post.TableData)
 			}(),
@@ -433,9 +442,9 @@ func GetPost(w http.ResponseWriter, r *http.Request) {
 			}
 			return videos
 		}(),
-		"tables": func() []map[string]interface{} {
+		"tables": func() interface{} {
 			if len(post.TableData) == 0 {
-				return []map[string]interface{}{}
+				return nil
 			}
 			return formatTableData(post.TableData)
 		}(),
