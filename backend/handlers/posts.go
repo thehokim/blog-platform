@@ -305,40 +305,25 @@ func GetPosts(w http.ResponseWriter, r *http.Request) {
 			"title":       post.Title,
 			"description": post.Description,
 			"date":        post.Date,
-			"tags": func() []map[string]string {
-				var tags []map[string]string
+			"tags": func() []map[string]interface{} {
+				var tags []map[string]interface{}
 				for _, tag := range post.Tags {
-					tags = append(tags, map[string]string{
+					tags = append(tags, map[string]interface{}{
+						"ID":   tag.ID,
 						"Name": tag.Name,
 					})
 				}
 				return tags
 			}(),
-			"images": func() []string {
-				var images []string
-				for _, img := range post.Images {
-					images = append(images, img.URL)
+			"images": post.Images, // Полностью сохраняем объекты
+			"maps":   post.Maps,   // Сохраняем массив объектов
+			"videos": post.Videos, // Оставляем массив объектов
+			"tables": func() []map[string]interface{} {
+				if len(post.TableData) == 0 {
+					return []map[string]interface{}{} // Пустой массив вместо null
 				}
-				return images
+				return formatTableData(post.TableData)
 			}(),
-			"maps": func() []map[string]float64 {
-				var maps []map[string]float64
-				for _, m := range post.Maps {
-					maps = append(maps, map[string]float64{
-						"latitude":  m.Latitude,
-						"longitude": m.Longitude,
-					})
-				}
-				return maps
-			}(),
-			"videos": func() []string {
-				var videos []string
-				for _, v := range post.Videos {
-					videos = append(videos, v.URL)
-				}
-				return videos
-			}(),
-			"tables": formatTableData(post.TableData),
 			"author": map[string]string{
 				"name":     post.Author.Username,
 				"imageUrl": post.Author.Avatar,
@@ -375,40 +360,25 @@ func GetPost(w http.ResponseWriter, r *http.Request) {
 		"title":       post.Title,
 		"description": post.Description,
 		"date":        post.Date,
-		"tags": func() []map[string]string {
-			var tags []map[string]string
+		"tags": func() []map[string]interface{} {
+			var tags []map[string]interface{}
 			for _, tag := range post.Tags {
-				tags = append(tags, map[string]string{
+				tags = append(tags, map[string]interface{}{
+					"ID":   tag.ID,
 					"Name": tag.Name,
 				})
 			}
 			return tags
 		}(),
-		"images": func() []string {
-			var images []string
-			for _, img := range post.Images {
-				images = append(images, img.URL)
+		"images": post.Images, // Оставляем объекты
+		"maps":   post.Maps,   // Оставляем массив объектов
+		"videos": post.Videos, // Оставляем массив объектов
+		"tables": func() []map[string]interface{} {
+			if len(post.TableData) == 0 {
+				return []map[string]interface{}{} // Пустой массив вместо null
 			}
-			return images
+			return formatTableData(post.TableData)
 		}(),
-		"maps": func() []map[string]float64 {
-			var maps []map[string]float64
-			for _, m := range post.Maps {
-				maps = append(maps, map[string]float64{
-					"latitude":  m.Latitude,
-					"longitude": m.Longitude,
-				})
-			}
-			return maps
-		}(),
-		"videos": func() []string {
-			var videos []string
-			for _, v := range post.Videos {
-				videos = append(videos, v.URL)
-			}
-			return videos
-		}(),
-		"tables": formatTableData(post.TableData),
 		"author": map[string]string{
 			"name":     post.Author.Username,
 			"imageUrl": post.Author.Avatar,
