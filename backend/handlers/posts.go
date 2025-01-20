@@ -315,9 +315,9 @@ func GetPosts(w http.ResponseWriter, r *http.Request) {
 				}
 				return tags
 			}(),
-			"images": post.Images, // Полностью сохраняем объекты
-			"maps":   post.Maps,   // Сохраняем массив объектов
-			"videos": post.Videos, // Оставляем массив объектов
+			"images": post.Images,
+			"maps":   post.Maps, // Теперь должно работать
+			"videos": post.Videos,
 			"tables": func() []map[string]interface{} {
 				if len(post.TableData) == 0 {
 					return []map[string]interface{}{} // Пустой массив вместо null
@@ -370,8 +370,17 @@ func GetPost(w http.ResponseWriter, r *http.Request) {
 			}
 			return tags
 		}(),
-		"images": post.Images, // Оставляем объекты
-		"maps":   post.Maps,   // Оставляем массив объектов
+		"images": post.Images, // Теперь массив объектов, а не строк
+		"maps": func() []map[string]float64 {
+			var maps []map[string]float64
+			for _, m := range post.Maps {
+				maps = append(maps, map[string]float64{
+					"latitude":  m.Latitude,
+					"longitude": m.Longitude,
+				})
+			}
+			return maps
+		}(),
 		"videos": post.Videos, // Оставляем массив объектов
 		"tables": func() []map[string]interface{} {
 			if len(post.TableData) == 0 {
