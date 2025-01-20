@@ -163,8 +163,10 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 
 	if rawTables != "" && rawTables != "null" {
 		var receivedTables []map[string]interface{}
+
+		// Парсим JSON
 		if err := json.Unmarshal([]byte(rawTables), &receivedTables); err != nil {
-			log.Println("Ошибка парсинга таблиц:", err)
+			log.Println("❌ Ошибка парсинга таблиц:", err)
 			respondWithError(w, http.StatusBadRequest, "Invalid table data format")
 			return
 		}
@@ -172,14 +174,18 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 		for _, table := range receivedTables {
 			tableJSON, err := json.Marshal(table)
 			if err != nil {
-				log.Println("Ошибка преобразования таблицы в JSON:", err)
+				log.Println("❌ Ошибка преобразования таблицы в JSON:", err)
 				continue
 			}
+
+			// Сохраняем даже пустые таблицы
 			tables = append(tables, models.TableContent{
 				PostID: post.ID,
 				Data:   string(tableJSON),
 			})
 		}
+
+		log.Println("✅ Успешно сохранено таблиц:", len(tables))
 	}
 
 	var tagNames []string
