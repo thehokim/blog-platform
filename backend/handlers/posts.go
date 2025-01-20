@@ -159,20 +159,26 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 
 	var tables []models.TableContent
 	rawTables := r.FormValue("tables")
-	log.Println("📥 Полученные таблицы:", rawTables) // ✅ Логируем входные данные
+	log.Println("📥 Полученные таблицы:", rawTables)
 
 	if rawTables != "" && rawTables != "null" {
 		var receivedTables []map[string]interface{}
 		if err := json.Unmarshal([]byte(rawTables), &receivedTables); err != nil {
-			log.Println(" Ошибка парсинга таблиц:", err)
-		} else {
-			for _, table := range receivedTables {
-				tableJSON, _ := json.Marshal(table) // Преобразуем в JSON строку
-				tables = append(tables, models.TableContent{
-					PostID: post.ID,
-					Data:   string(tableJSON),
-				})
+			log.Println("Ошибка парсинга таблиц:", err)
+			respondWithError(w, http.StatusBadRequest, "Invalid table data format")
+			return
+		}
+
+		for _, table := range receivedTables {
+			tableJSON, err := json.Marshal(table)
+			if err != nil {
+				log.Println("Ошибка преобразования таблицы в JSON:", err)
+				continue
 			}
+			tables = append(tables, models.TableContent{
+				PostID: post.ID,
+				Data:   string(tableJSON),
+			})
 		}
 	}
 
@@ -281,13 +287,13 @@ func formatTableData(tables []models.TableContent) []map[string]interface{} {
 	for _, table := range tables {
 		var parsedTable map[string]interface{}
 		if err := json.Unmarshal([]byte(table.Data), &parsedTable); err != nil {
-			log.Printf("❌ Ошибка парсинга таблицы ID %d: %v", table.ID, err)
+			log.Printf(" Ошибка парсинга таблицы ID %d: %v", table.ID, err)
 			continue
 		}
 		formattedTables = append(formattedTables, parsedTable)
 	}
 
-	log.Println("📤 Отправляем таблицы:", formattedTables) // ✅ Логируем перед отправкой
+	log.Println(" Отправляем таблицы:", formattedTables)
 	return formattedTables
 }
 
@@ -435,9 +441,7 @@ func GetPost(w http.ResponseWriter, r *http.Request) {
 			var videos []map[string]interface{}
 			for _, v := range post.Videos {
 				videos = append(videos, map[string]interface{}{
-					"ID":      v.ID,
-					"url":     v.URL,
-					"caption": v.Caption,
+					"url": v.URL,
 				})
 			}
 			return videos
