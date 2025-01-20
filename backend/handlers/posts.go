@@ -315,12 +315,43 @@ func GetPosts(w http.ResponseWriter, r *http.Request) {
 				}
 				return tags
 			}(),
-			"images": post.Images,
-			"maps":   post.Maps, // Теперь должно работать
-			"videos": post.Videos,
+			"images": func() []map[string]interface{} {
+				var images []map[string]interface{}
+				for _, img := range post.Images {
+					images = append(images, map[string]interface{}{
+						"ID":         img.ID,
+						"url":        img.URL,
+						"alt_text":   img.AltText,
+						"created_at": img.CreatedAt,
+					})
+				}
+				return images
+			}(),
+			"maps": func() []map[string]float64 {
+				var maps []map[string]float64
+				for _, m := range post.Maps {
+					maps = append(maps, map[string]float64{
+						"latitude":  m.Latitude,
+						"longitude": m.Longitude,
+					})
+				}
+				return maps
+			}(),
+			"videos": func() []map[string]interface{} {
+				var videos []map[string]interface{}
+				for _, v := range post.Videos {
+					videos = append(videos, map[string]interface{}{
+						"ID":         v.ID,
+						"url":        v.URL,
+						"caption":    v.Caption,
+						"created_at": v.CreatedAt,
+					})
+				}
+				return videos
+			}(),
 			"tables": func() []map[string]interface{} {
 				if len(post.TableData) == 0 {
-					return []map[string]interface{}{} // Пустой массив вместо null
+					return []map[string]interface{}{}
 				}
 				return formatTableData(post.TableData)
 			}(),
@@ -370,7 +401,17 @@ func GetPost(w http.ResponseWriter, r *http.Request) {
 			}
 			return tags
 		}(),
-		"images": post.Images, // Теперь массив объектов, а не строк
+		"images": func() []map[string]interface{} {
+			var images []map[string]interface{}
+			for _, img := range post.Images {
+				images = append(images, map[string]interface{}{
+					"ID":       img.ID,
+					"url":      img.URL,
+					"alt_text": img.AltText,
+				})
+			}
+			return images
+		}(),
 		"maps": func() []map[string]float64 {
 			var maps []map[string]float64
 			for _, m := range post.Maps {
@@ -381,10 +422,20 @@ func GetPost(w http.ResponseWriter, r *http.Request) {
 			}
 			return maps
 		}(),
-		"videos": post.Videos, // Оставляем массив объектов
+		"videos": func() []map[string]interface{} {
+			var videos []map[string]interface{}
+			for _, v := range post.Videos {
+				videos = append(videos, map[string]interface{}{
+					"ID":      v.ID,
+					"url":     v.URL,
+					"caption": v.Caption,
+				})
+			}
+			return videos
+		}(),
 		"tables": func() []map[string]interface{} {
 			if len(post.TableData) == 0 {
-				return []map[string]interface{}{} // Пустой массив вместо null
+				return []map[string]interface{}{}
 			}
 			return formatTableData(post.TableData)
 		}(),
