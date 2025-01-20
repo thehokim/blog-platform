@@ -289,17 +289,15 @@ func extractTagNames(tags []models.Tag) []string {
 
 func formatTableData(tables []models.TableContent) []map[string]interface{} {
 	var formattedTables []map[string]interface{}
-
 	for _, table := range tables {
-		var parsedTable map[string]interface{}
-		if err := json.Unmarshal([]byte(table.Data), &parsedTable); err != nil {
-			log.Printf(" Ошибка парсинга таблицы ID %d: %v", table.ID, err)
+		var parsedData map[string]interface{}
+		if err := json.Unmarshal([]byte(table.Data), &parsedData); err != nil {
+			log.Println("❌ Ошибка парсинга таблицы:", err)
 			continue
 		}
-		formattedTables = append(formattedTables, parsedTable)
-	}
 
-	log.Println(" Отправляем таблицы:", formattedTables)
+		formattedTables = append(formattedTables, parsedData)
+	}
 	return formattedTables
 }
 
