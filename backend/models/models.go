@@ -26,7 +26,7 @@ type Post struct {
 	Title       string         `json:"title"` // Убрали not null
 	Slug        string         `gorm:"unique"`
 	Description string         `json:"description"` // Убрали not null
-	AuthorID    uint           `gorm:"index"`
+	AuthorID    uint           `json:author_id"`
 	Author      User           `gorm:"foreignKey:AuthorID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Tags        []Tag          `gorm:"many2many:post_tags;"`
 	Images      []ImageContent `gorm:"foreignKey:PostID"`

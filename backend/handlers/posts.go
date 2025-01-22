@@ -3,6 +3,7 @@ package handlers
 import (
 	"blog-platform/database"
 	"blog-platform/models"
+	"blog-platform/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -50,6 +51,32 @@ func respondWithError(w http.ResponseWriter, statusCode int, message string) {
 	log.Printf("Error: %s (status: %d)", message, statusCode)
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
+// Получение всех постов, созданных текущим пользователем
+func GetMyBlogs(w http.ResponseWriter, r *http.Request) {
+	userID, err := utils.GetUserIDFromRequest(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var posts []models.Post
+	if err := database.DB.
+		Where("author_id = ?", userID). // Фильтрация по автору
+		Preload("Author").
+		Preload("Tags").
+		Preload("Images").
+		Preload("Videos").
+		Preload("Maps").
+		Preload("TableData").
+		Find(&posts).Error; err != nil {
+		http.Error(w, "Failed to retrieve posts", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(posts)
 }
 
 // Создание поста
@@ -540,11 +567,13 @@ func SearchPosts(w http.ResponseWriter, r *http.Request) {
 
 	// Фильтрация по ключевому слову (title или description)
 	if search != "" {
+		log.Println("Фильтрация по ключевому слову:", search)
 		query = query.Where("title ILIKE ? OR description ILIKE ?", "%"+search+"%", "%"+search+"%")
 	}
 
 	// Фильтрация по тегу
 	if tag != "" {
+		log.Println("Фильтрация по тегу:", tag)
 		query = query.Joins("JOIN post_tags ON posts.id = post_tags.post_id").
 			Joins("JOIN tags ON post_tags.tag_id = tags.id").
 			Where("tags.name = ?", tag)
@@ -552,8 +581,24 @@ func SearchPosts(w http.ResponseWriter, r *http.Request) {
 
 	// Выполняем запрос
 	if err := query.Find(&posts).Error; err != nil {
+		log.Println("Ошибка при получении постов:", err)
 		http.Error(w, "Failed to fetch posts", http.StatusInternalServerError)
 		return
+	}
+
+	// Проверка наличия данных
+	if len(posts) == 0 {
+		log.Println("Посты не найдены")
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message": "No posts found"}`))
+		return
+	}
+
+	// Отправка результата клиенту
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(posts); err != nil {
+		log.Println("Ошибка при кодировании JSON:", err)
+		http.Error(w, "Failed to encode posts", http.StatusInternalServerError)
 	}
 }
 

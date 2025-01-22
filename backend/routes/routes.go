@@ -3,6 +3,7 @@ package routes
 import (
 	"blog-platform/handlers"
 	"blog-platform/middleware"
+	"net/http"
 
 	"github.com/gorilla/mux"
 )
@@ -10,13 +11,12 @@ import (
 // InitRoutes initializes all application routes
 func InitRoutes() *mux.Router {
 	router := mux.NewRouter()
-
-	// Initialize specific route groups
 	initAuthRoutes(router)
 	initCommentRoutes(router)
 	initUserRoutes(router)
 	initPostRoutes(router)
 	initNotificationRoutes(router)
+	initMyBlogsRoute(router) // Добавляем маршрут для /posts/myblogs
 
 	return router
 }
@@ -30,10 +30,10 @@ func initAuthRoutes(router *mux.Router) {
 
 // initCommentRoutes sets up comment-related routes
 func initCommentRoutes(router *mux.Router) {
-	router.HandleFunc("/posts/{id:[0-9]+}/comments", handlers.GetComments).Methods("GET")    // Get comments for a post
-	router.HandleFunc("/posts/{id:[0-9]+}/comments", handlers.CreateComment).Methods("POST") // Create a comment for a post
-	router.HandleFunc("/comments/{id:[0-9]+}/like", handlers.LikeComment).Methods("POST")    // Like a comment
-	router.HandleFunc("/comments/{id:[0-9]+}/like", handlers.GetLikes).Methods("GET")
+	router.HandleFunc("/posts/{post_id:[0-9]+}/comments", handlers.CreateComment).Methods("POST") // Create a comment
+	router.HandleFunc("/posts/{post_id:[0-9]+}/comments", handlers.GetComments).Methods("GET")    // Get comments
+	router.HandleFunc("/comments/{id:[0-9]+}/like", handlers.LikeComment).Methods("POST")         // Like a comment
+	router.HandleFunc("/comments/{id:[0-9]+}/like", handlers.GetLikes).Methods("GET")             // Get likes
 }
 
 // initUserRoutes sets up user-related routes
@@ -46,6 +46,11 @@ func initNotificationRoutes(router *mux.Router) {
 	router.HandleFunc("/notifications", handlers.GetNotifications).Methods("GET") // Получение уведомлений
 	router.HandleFunc("/notifications/{id}/reaction", handlers.ReactToNotification).Methods("POST")
 	router.HandleFunc("/notifications/{id}/reactions", handlers.GetReactionsForNotification).Methods("GET")
+}
+
+// Добавляем функцию для маршрута /posts/myblogs
+func initMyBlogsRoute(router *mux.Router) {
+	router.Handle("/posts/myblogs", middleware.AuthMiddleware(http.HandlerFunc(handlers.GetMyBlogs))).Methods("GET")
 }
 
 func initPostRoutes(router *mux.Router) {

@@ -12,17 +12,11 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// GetComments - Retrieve all comments for a post with filters
 func GetComments(w http.ResponseWriter, r *http.Request) {
-	postIDStr := r.URL.Query().Get("post_id")
-	if postIDStr == "" {
-		http.Error(w, "Post ID is required", http.StatusBadRequest)
-		return
-	}
-
-	postID, err := strconv.Atoi(postIDStr)
+	vars := mux.Vars(r)
+	postID, err := strconv.Atoi(vars["post_id"])
 	if err != nil {
-		http.Error(w, "Invalid Post ID format", http.StatusBadRequest)
+		http.Error(w, "Invalid Post ID", http.StatusBadRequest)
 		return
 	}
 
@@ -33,7 +27,6 @@ func GetComments(w http.ResponseWriter, r *http.Request) {
 	var comments []models.Comment
 	query := database.DB.Where("post_id = ?", postID)
 
-	// Применение фильтров
 	if likeFilter != "" {
 		query = query.Where("likes = ?", likeFilter)
 	}
@@ -53,17 +46,12 @@ func GetComments(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(comments)
 }
 
-// CreateComment - Create a new comment for a post
+// CreateComment - Создание комментария
 func CreateComment(w http.ResponseWriter, r *http.Request) {
-	postIDStr := r.URL.Query().Get("post_id")
-	if postIDStr == "" {
-		http.Error(w, "Post ID is required", http.StatusBadRequest)
-		return
-	}
-
-	postID, err := strconv.Atoi(postIDStr)
+	vars := mux.Vars(r)
+	postID, err := strconv.Atoi(vars["post_id"])
 	if err != nil {
-		http.Error(w, "Invalid Post ID format", http.StatusBadRequest)
+		http.Error(w, "Invalid Post ID", http.StatusBadRequest)
 		return
 	}
 
@@ -75,7 +63,7 @@ func CreateComment(w http.ResponseWriter, r *http.Request) {
 
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
-		http.Error(w, "Invalid User ID format", http.StatusBadRequest)
+		http.Error(w, "Invalid User ID", http.StatusBadRequest)
 		return
 	}
 
