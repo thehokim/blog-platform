@@ -50,7 +50,7 @@ type Tag struct {
 type Comment struct {
 	ID        uint      `gorm:"primaryKey"`
 	Content   string    `gorm:"not null"`
-	PostID    uint      `gorm:"not null;index"`
+	PostID    uint      `gorm:"index;constraint:OnDelete:CASCADE;"`
 	AuthorID  uint      `gorm:"not null;index"`
 	Likes     int       `gorm:"default:0"`
 	Edited    bool      `gorm:"default:false"`

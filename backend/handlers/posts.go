@@ -554,23 +554,27 @@ func DeletePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Удаляем связи в post_tags
+	// 1. Удаление всех связанных записей из таблиц
 	log.Println("🗑️ Удаление тегов поста ID:", id)
-	database.DB.Where("post_id = ?", id).Delete(&models.Post{})
+	database.DB.Where("post_id = ?", id).Delete(&models.Tag{})
 
-	// 2. Удаляем связанные данные
 	log.Println("🗑️ Удаление изображений, карт, видео, таблиц для поста ID:", id)
 	database.DB.Where("post_id = ?", id).Delete(&models.ImageContent{})
 	database.DB.Where("post_id = ?", id).Delete(&models.MapContent{})
 	database.DB.Where("post_id = ?", id).Delete(&models.VideoContent{})
 	database.DB.Where("post_id = ?", id).Delete(&models.TableContent{})
 
+	// 2. Удаление лайков и сохранений поста
+	log.Println("🗑️ Удаление лайков и сохраненных записей поста ID:", id)
+	database.DB.Unscoped().Where("post_id = ?", id).Delete(&models.Like{})
+	database.DB.Unscoped().Where("post_id = ?", id).Delete(&models.SavedPost{})
+
 	// 3. Теперь можно удалить сам пост
 	log.Println("🗑️ Удаление поста ID:", id)
 	result := database.DB.Delete(&post)
 	if result.Error != nil {
-		log.Println("❌ Ошибка при удалении поста:", result.Error)
-		respondWithError(w, http.StatusInternalServerError, "Failed to delete post")
+		log.Printf("❌ Ошибка при удалении поста ID %d: %v", id, result.Error)
+		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to delete post: %v", result.Error))
 		return
 	}
 
