@@ -250,7 +250,7 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 }
 
 // **Сохранение зависимого контента**
-func saveContent(post *models.Post, images []models.ImageContent, maps []models.MapContent, videos []models.VideoContent, tables []models.TableContent) {
+func saveContent(_ *models.Post, images []models.ImageContent, maps []models.MapContent, videos []models.VideoContent, tables []models.TableContent) {
 	log.Println("Saving content to database")
 
 	if len(images) > 0 {
@@ -303,15 +303,6 @@ func saveTags(post *models.Post, tagNames []string) {
 	// Привязываем теги к посту через Many-to-Many
 	database.DB.Model(post).Association("Tags").Replace(allTags)
 	log.Println("Tags saved successfully:", tagNames)
-}
-
-// **Извлечение имен тегов**
-func extractTagNames(tags []models.Tag) []string {
-	var tagNames []string
-	for _, tag := range tags {
-		tagNames = append(tagNames, tag.Name)
-	}
-	return tagNames
 }
 
 func formatTableData(tables []models.TableContent) []map[string]interface{} {
