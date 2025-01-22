@@ -524,19 +524,57 @@ func UpdatePost(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(post)
 }
 
-// DeletePost - Удаление поста
 func DeletePost(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		log.Println("❌ Ошибка преобразования ID:", err)
 		respondWithError(w, http.StatusBadRequest, "Invalid ID format")
 		return
 	}
 
-	if err := database.DB.Delete(&models.Post{}, id).Error; err != nil {
+	userID, err := utils.GetUserIDFromRequest(r)
+	if err != nil {
+		log.Println("❌ Ошибка получения userID из токена:", err)
+		respondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	log.Println("🛑 Попытка удаления поста с ID:", id, "пользователем с ID:", userID)
+
+	var post models.Post
+	if err := database.DB.First(&post, id).Error; err != nil {
+		log.Println("⚠️ Пост с ID", id, "не найден")
+		respondWithError(w, http.StatusNotFound, "Post not found")
+		return
+	}
+
+	if post.AuthorID != uint(userID) {
+		log.Println("⛔ Пользователь с ID", userID, "не является автором поста ID", id)
+		respondWithError(w, http.StatusForbidden, "You are not allowed to delete this post")
+		return
+	}
+
+	// 1. Удаляем связи в post_tags
+	log.Println("🗑️ Удаление тегов поста ID:", id)
+	database.DB.Where("post_id = ?", id).Delete(&models.Post{})
+
+	// 2. Удаляем связанные данные
+	log.Println("🗑️ Удаление изображений, карт, видео, таблиц для поста ID:", id)
+	database.DB.Where("post_id = ?", id).Delete(&models.ImageContent{})
+	database.DB.Where("post_id = ?", id).Delete(&models.MapContent{})
+	database.DB.Where("post_id = ?", id).Delete(&models.VideoContent{})
+	database.DB.Where("post_id = ?", id).Delete(&models.TableContent{})
+
+	// 3. Теперь можно удалить сам пост
+	log.Println("🗑️ Удаление поста ID:", id)
+	result := database.DB.Delete(&post)
+	if result.Error != nil {
+		log.Println("❌ Ошибка при удалении поста:", result.Error)
 		respondWithError(w, http.StatusInternalServerError, "Failed to delete post")
 		return
 	}
 
+	log.Println("✅ Пост с ID", id, "успешно удалён пользователем с ID", userID)
 	w.WriteHeader(http.StatusNoContent)
 }
 
