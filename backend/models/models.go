@@ -47,17 +47,17 @@ type Tag struct {
 }
 
 type Comment struct {
-	ID        uint      `json:"ID"`
-	Content   string    `json:"Content"`
-	PostID    uint      `json:"PostID"`
-	AuthorID  uint      `json:"AuthorID"`
-	ParentID  *uint     `json:"ParentID"` // ParentID will be null for top-level comments
-	Likes     int       `json:"Likes"`
-	Edited    bool      `json:"Edited"`
-	Deleted   bool      `json:"Deleted"`
+	ID        uint      `json:"id"`
+	Content   string    `json:"content"`
+	PostID    uint      `json:"post_id"`
+	AuthorID  uint      `json:"author_id"`
+	ParentID  *uint     `json:"parent_id"`
+	Likes     int       `json:"likes"`
+	Edited    bool      `json:"edited"`
+	Deleted   bool      `json:"deleted"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	Replies   []Comment `json:"replies" gorm:"foreignKey:ParentID"` // Specify the foreign key
+	Replies   []Reply   `json:"replies" gorm:"foreignKey:ParentID;constraint:OnDelete:CASCADE;"`
 }
 
 type Reply struct {
@@ -65,7 +65,7 @@ type Reply struct {
 	Content   string    `gorm:"not null"`
 	PostID    uint      `gorm:"index;constraint:OnDelete:CASCADE;"`
 	AuthorID  uint      `gorm:"not null;index"`
-	ParentID  uint      `gorm:"not null;index"` // Foreign key to Comment
+	ParentID  uint      `gorm:"not null;index;constraint:OnDelete:CASCADE;"` // Включаем каскадное удаление
 	Likes     int       `gorm:"default:0"`
 	Edited    bool      `gorm:"default:false"`
 	Deleted   bool      `gorm:"default:false"`

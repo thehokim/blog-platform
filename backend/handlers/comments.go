@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 func GetComments(w http.ResponseWriter, r *http.Request) {
@@ -19,8 +20,10 @@ func GetComments(w http.ResponseWriter, r *http.Request) {
 
 	var comments []models.Comment
 
-	// Fetch comments for the specific post and preload the replies
-	if err := database.DB.Preload("Replies").Where("post_id = ?", postID).Find(&comments).Error; err != nil {
+	// Fetch comments for the specific post, excluding deleted comments, and preload non-deleted replies
+	if err := database.DB.Preload("Replies", func(db *gorm.DB) *gorm.DB {
+		return db.Where("deleted = ? OR deleted IS NULL", false) // Загружаем только не удалённые ответы
+	}).Where("post_id = ? AND (deleted = false OR deleted IS NULL)", postID).Find(&comments).Error; err != nil {
 		http.Error(w, fmt.Sprintf("Error fetching comments for post %s: %v", postID, err), http.StatusInternalServerError)
 		return
 	}
@@ -136,50 +139,46 @@ func UpdateComment(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteComment(w http.ResponseWriter, r *http.Request) {
-	// Extracting the parameters from the URL path
 	vars := mux.Vars(r)
-	commentID, err := strconv.Atoi(vars["id"])
+
+	commentID, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid Comment ID", http.StatusBadRequest)
 		return
 	}
 
-	postID, err := strconv.Atoi(vars["post_id"])
+	postID, err := strconv.ParseUint(vars["post_id"], 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid Post ID", http.StatusBadRequest)
 		return
 	}
 
-	// Convert postID to uint
-	postIDUint := uint(postID)
-
-	// Retrieve the comment from the database
 	var comment models.Comment
 	if err := database.DB.First(&comment, commentID).Error; err != nil {
 		http.Error(w, "Comment not found", http.StatusNotFound)
 		return
 	}
 
-	// Validate if the comment belongs to the given postID (optional)
-	if comment.PostID != postIDUint {
+	if comment.PostID != uint(postID) {
 		http.Error(w, "Comment does not belong to the specified post", http.StatusBadRequest)
 		return
 	}
 
-	// Mark the comment as deleted (soft delete)
-	comment.Deleted = true
-	if err := database.DB.Save(&comment).Error; err != nil {
+	// Удаляем все ответы (replies), которые ссылаются на этот комментарий
+	if err := database.DB.Where("parent_id = ?", commentID).Delete(&models.Reply{}).Error; err != nil {
+		http.Error(w, "Failed to delete replies", http.StatusInternalServerError)
+		return
+	}
+
+	// Удаляем сам комментарий после удаления ответов
+	if err := database.DB.Where("id = ?", commentID).Delete(&models.Comment{}).Error; err != nil {
 		http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
 		return
 	}
 
-	// Send a success response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	response := map[string]string{
-		"message": "Comment deleted successfully",
-	}
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Comment and its replies deleted successfully"})
 }
 
 // LikeComment - Add a like to a comment
