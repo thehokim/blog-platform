@@ -55,6 +55,7 @@ func InitDatabase() {
 		&models.Like{},
 		&models.Notification{},
 		&models.SavedPost{},
+		&models.Reply{},
 	); err != nil {
 		log.Fatalf("Migration failed: %v", err)
 	} else {

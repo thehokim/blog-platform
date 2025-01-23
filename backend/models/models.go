@@ -46,12 +46,26 @@ type Tag struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// Comment represents a comment on a post
 type Comment struct {
+	ID        uint      `json:"ID"`
+	Content   string    `json:"Content"`
+	PostID    uint      `json:"PostID"`
+	AuthorID  uint      `json:"AuthorID"`
+	ParentID  *uint     `json:"ParentID"` // ParentID will be null for top-level comments
+	Likes     int       `json:"Likes"`
+	Edited    bool      `json:"Edited"`
+	Deleted   bool      `json:"Deleted"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Replies   []Comment `json:"replies" gorm:"foreignKey:ParentID"` // Specify the foreign key
+}
+
+type Reply struct {
 	ID        uint      `gorm:"primaryKey"`
 	Content   string    `gorm:"not null"`
 	PostID    uint      `gorm:"index;constraint:OnDelete:CASCADE;"`
 	AuthorID  uint      `gorm:"not null;index"`
+	ParentID  uint      `gorm:"not null;index"` // Foreign key to Comment
 	Likes     int       `gorm:"default:0"`
 	Edited    bool      `gorm:"default:false"`
 	Deleted   bool      `gorm:"default:false"`
