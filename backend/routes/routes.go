@@ -30,20 +30,20 @@ func initAuthRoutes(router *mux.Router) {
 
 // initCommentRoutes sets up comment-related routes
 func initCommentRoutes(router *mux.Router) {
-	router.HandleFunc("/posts/{post_id:[0-9]+}/comments", handlers.CreateComment).Methods("POST") // Create a comment
-	router.HandleFunc("/posts/{post_id:[0-9]+}/comments/{id:[0-9]+}", handlers.UpdateComment).Methods("PUT")
-	router.HandleFunc("/posts/{post_id:[0-9]+}/comments", handlers.GetComments).Methods("GET") // Get comments
-	router.HandleFunc("/posts/{post_id:[0-9]+}/comments/{id:[0-9]+}", handlers.DeleteComment).Methods("DELETE")
-	router.HandleFunc("/comments/{id:[0-9]+}/like", handlers.LikeComment).Methods("POST")    // Like a comment
-	router.HandleFunc("/comments/{id:[0-9]+}/like", handlers.GetCommentLikes).Methods("GET") // Get likes
-	router.HandleFunc("/comments/{id:[0-9]+}/like", handlers.UnlikeComment).Methods("DELETE")
-	router.HandleFunc("/comments/{id:[0-9]+}/replies", handlers.ReplyToComment).Methods("POST") // Reply to a comment
-	router.HandleFunc("/comments/{comment_id:[0-9]+}/replies/{id:[0-9]+}", handlers.UpdateReply).Methods("PUT")
-	router.HandleFunc("/comments/{id:[0-9]+}/replies", handlers.GetReplies).Methods("GET")
-	router.HandleFunc("/comments/{comment_id}/replies/{id}", handlers.DeleteReply).Methods("DELETE")
-	router.HandleFunc("/replies/{id:[0-9]+}/like", handlers.LikeReply).Methods("POST")     // Like reply
-	router.HandleFunc("/replies/{id:[0-9]+}/likes", handlers.GetReplyLikes).Methods("GET") // Get reply like count
-	router.HandleFunc("/replies/{id:[0-9]+}/like", handlers.UnlikeReply).Methods("DELETE")
+	router.HandleFunc("/posts/{post_id:[0-9]+}/comments", handlers.CreateComment).Methods("POST")               // Create a comment*
+	router.HandleFunc("/posts/{post_id:[0-9]+}/comments/{id:[0-9]+}", handlers.UpdateComment).Methods("PUT")    //*
+	router.HandleFunc("/posts/{post_id:[0-9]+}/comments", handlers.GetComments).Methods("GET")                  // Get comments *
+	router.HandleFunc("/posts/{post_id:[0-9]+}/comments/{id:[0-9]+}", handlers.DeleteComment).Methods("DELETE") //*
+	router.HandleFunc("/comments/{id:[0-9]+}/like", handlers.LikeComment).Methods("POST")                       // Like a comment *
+	router.HandleFunc("/comments/{id:[0-9]+}/like", handlers.GetCommentLikes).Methods("GET")                    // Get likes*
+	router.HandleFunc("/comments/{id:[0-9]+}/like", handlers.UnlikeComment).Methods("DELETE")                   //*
+	router.HandleFunc("/comments/{id:[0-9]+}/replies", handlers.ReplyToComment).Methods("POST")                 // Reply to a comment*
+	router.HandleFunc("/comments/{comment_id:[0-9]+}/replies/{id:[0-9]+}", handlers.UpdateReply).Methods("PUT") //*
+	router.HandleFunc("/comments/{id:[0-9]+}/replies", handlers.GetReplies).Methods("GET")                      //*
+	router.HandleFunc("/comments/{comment_id}/replies/{id}", handlers.DeleteReply).Methods("DELETE")            //*
+	router.HandleFunc("/replies/{id:[0-9]+}/like", handlers.LikeReply).Methods("POST")                          // Like reply * isLiked true
+	router.HandleFunc("/replies/{id:[0-9]+}/likes", handlers.GetReplyLikes).Methods("GET")                      // Get reply like count -
+	router.HandleFunc("/replies/{id:[0-9]+}/like", handlers.UnlikeReply).Methods("DELETE")                      // isLiked False
 
 }
 

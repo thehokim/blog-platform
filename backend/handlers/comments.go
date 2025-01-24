@@ -431,23 +431,24 @@ func UpdateReply(w http.ResponseWriter, r *http.Request) {
 
 func GetReplies(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	commentIDStr := vars["id"]
-	commentID, err := strconv.Atoi(commentIDStr)
+	replyIDStr := vars["id"]
+	replyID, err := strconv.Atoi(replyIDStr)
 	if err != nil {
-		http.Error(w, "Invalid Comment ID", http.StatusBadRequest)
+		http.Error(w, "Invalid Reply ID", http.StatusBadRequest)
 		return
 	}
 
-	// Fetch replies for the given comment ID
-	var replies []models.Reply
-	if err := database.DB.Where("parent_id = ?", commentID).Find(&replies).Error; err != nil {
-		http.Error(w, "Failed to fetch replies", http.StatusInternalServerError)
+	var likeCount int64
+	// Count likes for the specific reply
+	if err := database.DB.Model(&models.Like{}).Where("reply_id = ?", replyID).Count(&likeCount).Error; err != nil {
+		http.Error(w, "Failed to fetch like count", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(replies)
+	json.NewEncoder(w).Encode(map[string]int64{
+		"likes": likeCount,
+	})
 }
 
 func DeleteReply(w http.ResponseWriter, r *http.Request) {
@@ -504,31 +505,45 @@ func LikeReply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Retrieve the reply from the database
-	var reply models.Reply // Changed from models.Comment to models.Reply
-	if err := database.DB.First(&reply, replyID).Error; err != nil {
-		http.Error(w, "Reply not found", http.StatusNotFound)
+	userID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
+	if err != nil {
+		http.Error(w, "Invalid User ID format", http.StatusBadRequest)
 		return
 	}
 
-	// Increment the like count
-	reply.Likes++
-	if err := database.DB.Save(&reply).Error; err != nil {
-		http.Error(w, "Failed to like reply", http.StatusInternalServerError)
+	// Проверяем, ставил ли пользователь лайк ранее
+	var existingLike models.Like
+	if err := database.DB.Where("reply_id = ? AND user_id = ?", replyID, userID).First(&existingLike).Error; err == nil {
+		http.Error(w, "User has already liked this reply", http.StatusConflict)
 		return
 	}
 
-	// Respond with the updated like count
+	// Добавляем лайк в таблицу лайков
+	like := models.Like{
+		UserID:  uint(userID),
+		ReplyID: uintPtr(uint(replyID)),
+	}
+	if err := database.DB.Create(&like).Error; err != nil {
+		http.Error(w, "Failed to register like", http.StatusInternalServerError)
+		return
+	}
+
+	// Обновляем счётчик лайков с защитой от конкурентных изменений
+	if err := database.DB.Model(&models.Reply{}).
+		Where("id = ?", replyID).
+		Update("likes", gorm.Expr("likes + 1")).Error; err != nil {
+		http.Error(w, "Failed to update like count", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	response := map[string]int{
-		"likes": reply.Likes,
-	}
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Reply liked successfully"})
 }
 
+// GetReplyLikes - Retrieve the number of likes for a reply and check if a user has liked it
 func GetReplyLikes(w http.ResponseWriter, r *http.Request) {
-	replyID, err := strconv.Atoi(mux.Vars(r)["id"])
+	vars := mux.Vars(r)
+	replyID, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		http.Error(w, "Invalid Reply ID format", http.StatusBadRequest)
 		return
@@ -541,30 +556,31 @@ func GetReplyLikes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var likeCount int64
-	// Count the number of likes for the reply
-	if err := database.DB.Model(&models.Like{}).Where("reply_id = ?", replyID).Count(&likeCount).Error; err != nil {
-		http.Error(w, "Failed to fetch like count", http.StatusInternalServerError)
+	// Подсчёт лайков для конкретного ReplyID
+	if err := database.DB.Model(&models.Like{}).
+		Where("reply_id = ?", replyID).
+		Count(&likeCount).Error; err != nil {
+		http.Error(w, fmt.Sprintf("Failed to fetch like count: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	var isLiked bool
-	// Check if the user has liked the reply
-	if err := database.DB.Model(&models.Like{}).Where("reply_id = ? AND user_id = ?", replyID, userID).First(&models.Like{}).Error; err == nil {
-		isLiked = true
-	} else {
-		isLiked = false
+	if err := database.DB.Model(&models.Like{}).
+		Select("COUNT(1) > 0").
+		Where("reply_id = ? AND user_id = ?", replyID, userID).
+		Scan(&isLiked).Error; err != nil {
+		http.Error(w, "Failed to check like status", http.StatusInternalServerError)
+		return
 	}
 
-	// Return the like count and like status
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"likes":   likeCount,
 		"isLiked": isLiked,
 	})
 }
 
-// UnlikeReply - Decrement the like count for a reply
+// UnlikeReply - Remove a like from a reply
 func UnlikeReply(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	replyID, err := strconv.Atoi(vars["id"])
@@ -573,32 +589,33 @@ func UnlikeReply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Retrieve the reply from the database
-	var reply models.Reply
-	if err := database.DB.First(&reply, replyID).Error; err != nil {
-		http.Error(w, "Reply not found", http.StatusNotFound)
+	userID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
+	if err != nil {
+		http.Error(w, "Invalid User ID format", http.StatusBadRequest)
 		return
 	}
 
-	// Ensure likes don't go below zero
-	if reply.Likes > 0 {
-		reply.Likes--
-	} else {
-		http.Error(w, "Cannot unlike, no likes present", http.StatusBadRequest)
+	// Проверяем, существует ли лайк
+	var existingLike models.Like
+	if err := database.DB.Where("reply_id = ? AND user_id = ?", replyID, userID).First(&existingLike).Error; err != nil {
+		http.Error(w, "Like not found", http.StatusNotFound)
 		return
 	}
 
-	// Save the updated reply back to the database
-	if err := database.DB.Save(&reply).Error; err != nil {
-		http.Error(w, "Failed to unlike reply", http.StatusInternalServerError)
+	// Удаляем лайк из базы
+	if err := database.DB.Delete(&existingLike).Error; err != nil {
+		http.Error(w, "Failed to remove like", http.StatusInternalServerError)
 		return
 	}
 
-	// Respond with the updated like count
+	// Обновляем счётчик лайков
+	if err := database.DB.Model(&models.Reply{}).
+		Where("id = ?", replyID).
+		Update("likes", gorm.Expr("likes - 1")).Error; err != nil {
+		http.Error(w, "Failed to update like count", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	response := map[string]int{
-		"likes": reply.Likes,
-	}
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Reply unliked successfully"})
 }
