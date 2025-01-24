@@ -57,6 +57,7 @@ type Comment struct {
 	Deleted   bool      `json:"deleted"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	Author    User      `json:"author" gorm:"foreignKey:AuthorID"`
 	Replies   []Reply   `json:"replies" gorm:"foreignKey:ParentID;constraint:OnDelete:CASCADE;"`
 }
 
@@ -71,6 +72,7 @@ type Reply struct {
 	Deleted   bool      `gorm:"default:false"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	Author    User      `json:"author" gorm:"foreignKey:AuthorID"`
 }
 
 // Like represents a like for a post or comment

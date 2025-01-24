@@ -20,20 +20,44 @@ func GetComments(w http.ResponseWriter, r *http.Request) {
 
 	var comments []models.Comment
 
-	// Fetch comments for the specific post, excluding deleted comments, and preload non-deleted replies
-	if err := database.DB.Preload("Replies", func(db *gorm.DB) *gorm.DB {
-		return db.Where("deleted = ? OR deleted IS NULL", false) // Загружаем только не удалённые ответы
-	}).Where("post_id = ? AND (deleted = false OR deleted IS NULL)", postID).Find(&comments).Error; err != nil {
+	// Загружаем автора и неназначенные (не удаленные) ответы
+	if err := database.DB.
+		Preload("Replies", func(db *gorm.DB) *gorm.DB {
+			return db.Where("deleted = ? OR deleted IS NULL", false)
+		}).
+		Preload("Author").
+		Where("post_id = ? AND (deleted = false OR deleted IS NULL)", postID).
+		Find(&comments).Error; err != nil {
 		http.Error(w, fmt.Sprintf("Error fetching comments for post %s: %v", postID, err), http.StatusInternalServerError)
 		return
 	}
 
-	// Respond with the fetched comments as JSON
+	// Преобразуем данные в нужный формат
+	var response []map[string]interface{}
+	for _, comment := range comments {
+		response = append(response, map[string]interface{}{
+			"id":         comment.ID,
+			"content":    comment.Content,
+			"post_id":    comment.PostID,
+			"author_id":  comment.AuthorID,
+			"parent_id":  comment.ParentID,
+			"likes":      comment.Likes,
+			"edited":     comment.Edited,
+			"deleted":    comment.Deleted,
+			"created_at": comment.CreatedAt,
+			"updated_at": comment.UpdatedAt,
+			"replies":    comment.Replies,
+			"author": map[string]interface{}{
+				"name":     comment.Author.Username,
+				"imageUrl": comment.Author.Avatar,
+			},
+		})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(comments)
+	json.NewEncoder(w).Encode(response)
 }
 
-// CreateComment - Create a new comment
 func CreateComment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	postID, err := strconv.Atoi(vars["post_id"])
@@ -74,9 +98,34 @@ func CreateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Загружаем данные автора для ответа
+	var author models.User
+	if err := database.DB.First(&author, userID).Error; err != nil {
+		http.Error(w, "Failed to retrieve author details", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"id":         comment.ID,
+		"content":    comment.Content,
+		"post_id":    comment.PostID,
+		"author_id":  comment.AuthorID,
+		"parent_id":  comment.ParentID,
+		"likes":      comment.Likes,
+		"edited":     comment.Edited,
+		"deleted":    comment.Deleted,
+		"created_at": comment.CreatedAt,
+		"updated_at": comment.UpdatedAt,
+		"replies":    nil,
+		"author": map[string]interface{}{
+			"name":     author.Username,
+			"imageUrl": author.Avatar,
+		},
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(comment)
+	json.NewEncoder(w).Encode(response)
 }
 
 // UpdateComment - Update an existing comment
@@ -338,7 +387,7 @@ func ReplyToComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch the parent comment from the database to get the associated PostID
+	// Получаем родительский комментарий
 	var parentComment models.Comment
 	if err := database.DB.First(&parentComment, commentID).Error; err != nil {
 		http.Error(w, "Parent comment not found", http.StatusBadRequest)
@@ -347,9 +396,9 @@ func ReplyToComment(w http.ResponseWriter, r *http.Request) {
 
 	reply := models.Reply{
 		Content:  input.Content,
-		PostID:   parentComment.PostID, // Link the reply to the parent comment's PostID
+		PostID:   parentComment.PostID,
 		AuthorID: uint(userID),
-		ParentID: uint(commentID), // Linking to parent comment
+		ParentID: uint(commentID),
 		Edited:   false,
 		Deleted:  false,
 	}
@@ -359,9 +408,34 @@ func ReplyToComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Загружаем данные автора для ответа
+	var author models.User
+	if err := database.DB.First(&author, userID).Error; err != nil {
+		http.Error(w, "Failed to retrieve author details", http.StatusInternalServerError)
+		return
+	}
+
+	// Формируем ответ с информацией об авторе
+	response := map[string]interface{}{
+		"id":         reply.ID,
+		"content":    reply.Content,
+		"post_id":    reply.PostID,
+		"author_id":  reply.AuthorID,
+		"parent_id":  reply.ParentID,
+		"likes":      reply.Likes,
+		"edited":     reply.Edited,
+		"deleted":    reply.Deleted,
+		"created_at": reply.CreatedAt,
+		"updated_at": reply.UpdatedAt,
+		"author": map[string]interface{}{
+			"name":     author.Username,
+			"imageUrl": author.Avatar,
+		},
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(reply)
+	json.NewEncoder(w).Encode(response)
 }
 
 func UpdateReply(w http.ResponseWriter, r *http.Request) {
@@ -438,17 +512,41 @@ func GetReplies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var reply models.Reply
+
+	// Загружаем данные ответа с информацией об авторе
+	if err := database.DB.Preload("Author").First(&reply, replyID).Error; err != nil {
+		http.Error(w, "Reply not found", http.StatusNotFound)
+		return
+	}
+
 	var likeCount int64
-	// Count likes for the specific reply
+	// Подсчет количества лайков для ответа
 	if err := database.DB.Model(&models.Like{}).Where("reply_id = ?", replyID).Count(&likeCount).Error; err != nil {
 		http.Error(w, "Failed to fetch like count", http.StatusInternalServerError)
 		return
 	}
 
+	// Формируем ответ с автором и лайками
+	response := map[string]interface{}{
+		"id":         reply.ID,
+		"content":    reply.Content,
+		"post_id":    reply.PostID,
+		"author_id":  reply.AuthorID,
+		"parent_id":  reply.ParentID,
+		"likes":      likeCount,
+		"edited":     reply.Edited,
+		"deleted":    reply.Deleted,
+		"created_at": reply.CreatedAt,
+		"updated_at": reply.UpdatedAt,
+		"author": map[string]interface{}{
+			"name":     reply.Author.Username,
+			"imageUrl": reply.Author.Avatar,
+		},
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]int64{
-		"likes": likeCount,
-	})
+	json.NewEncoder(w).Encode(response)
 }
 
 func DeleteReply(w http.ResponseWriter, r *http.Request) {
