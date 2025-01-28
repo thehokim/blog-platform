@@ -4,6 +4,7 @@ import (
 	"blog-platform/database"
 	"blog-platform/models"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -318,12 +319,14 @@ func uintPtr(i uint) *uint {
 
 // GetCommentLikes - Retrieve the number of likes for a comment and check if a user has liked it
 func GetCommentLikes(w http.ResponseWriter, r *http.Request) {
+	// Parse the comment ID from the URL
 	commentID, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		http.Error(w, "Invalid Comment ID format", http.StatusBadRequest)
 		return
 	}
 
+	// Parse the user ID from the query parameters
 	userIDStr := r.URL.Query().Get("user_id")
 	var userID int
 	var isLiked bool
@@ -335,27 +338,34 @@ func GetCommentLikes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Check if the user has already liked the comment
-		if err := database.DB.Model(&models.Like{}).Where("comment_id = ? AND user_id = ?", commentID, userID).First(&models.Like{}).Error; err == nil {
-			isLiked = true
-		} else {
-			isLiked = false
+		// Check if the user has liked the comment
+		err = database.DB.Model(&models.Like{}).Where("comment_id = ? AND user_id = ?", commentID, userID).First(&models.Like{}).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			http.Error(w, "Failed to check like status", http.StatusInternalServerError)
+			return
 		}
+		isLiked = (err == nil)
 	}
 
+	// Retrieve the total number of likes for the comment
 	var likeCount int64
-	// Count the number of likes for the comment
 	if err := database.DB.Model(&models.Like{}).Where("comment_id = ?", commentID).Count(&likeCount).Error; err != nil {
-		http.Error(w, "Failed to fetch like count", http.StatusInternalServerError)
+		http.Error(w, "Failed to retrieve like count", http.StatusInternalServerError)
 		return
 	}
 
+	// Prepare the response
+	response := map[string]interface{}{
+		"comment_id": commentID,
+		"like_count": likeCount,
+		"is_liked":   isLiked,
+	}
+
+	// Send the response as JSON
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"likes":   likeCount,
-		"isLiked": isLiked,
-	})
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func ReplyToComment(w http.ResponseWriter, r *http.Request) {
