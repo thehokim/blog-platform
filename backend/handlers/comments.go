@@ -594,48 +594,62 @@ func DeleteReply(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// LikeReply - Increment the like count for a reply
 func LikeReply(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	replyID, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		http.Error(w, "Invalid Reply ID", http.StatusBadRequest)
+		http.Error(w, "Неверный ID ответа", http.StatusBadRequest)
 		return
 	}
 
 	userID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
 	if err != nil {
-		http.Error(w, "Invalid User ID format", http.StatusBadRequest)
+		http.Error(w, "Неверный формат ID пользователя", http.StatusBadRequest)
 		return
 	}
 
 	// Проверяем, ставил ли пользователь лайк ранее
 	var existingLike models.Like
 	if err := database.DB.Where("reply_id = ? AND user_id = ?", replyID, userID).First(&existingLike).Error; err == nil {
-		http.Error(w, "User has already liked this reply", http.StatusConflict)
+		// Если лайк уже есть, удаляем его (переключение)
+		if err := database.DB.Delete(&existingLike).Error; err != nil {
+			http.Error(w, "Ошибка при удалении лайка", http.StatusInternalServerError)
+			return
+		}
+
+		// Уменьшаем счётчик лайков
+		if err := database.DB.Model(&models.Reply{}).
+			Where("id = ?", replyID).
+			Update("likes", gorm.Expr("likes - 1")).Error; err != nil {
+			http.Error(w, "Ошибка при обновлении счётчика лайков", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"message": "Лайк удалён"})
 		return
 	}
 
-	// Добавляем лайк в таблицу лайков
+	// Если лайка нет — добавляем
 	like := models.Like{
 		UserID:  uint(userID),
 		ReplyID: uintPtr(uint(replyID)),
 	}
 	if err := database.DB.Create(&like).Error; err != nil {
-		http.Error(w, "Failed to register like", http.StatusInternalServerError)
+		http.Error(w, "Ошибка при добавлении лайка", http.StatusInternalServerError)
 		return
 	}
 
-	// Обновляем счётчик лайков с защитой от конкурентных изменений
+	// Увеличиваем счётчик лайков
 	if err := database.DB.Model(&models.Reply{}).
 		Where("id = ?", replyID).
 		Update("likes", gorm.Expr("likes + 1")).Error; err != nil {
-		http.Error(w, "Failed to update like count", http.StatusInternalServerError)
+		http.Error(w, "Ошибка при обновлении счётчика лайков", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "Reply liked successfully"})
+	json.NewEncoder(w).Encode(map[string]string{"message": "Лайк добавлен"})
 }
 
 // GetReplyLikes - Retrieve the number of likes for a reply and check if a user has liked it
