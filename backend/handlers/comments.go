@@ -38,6 +38,7 @@ func GetComments(w http.ResponseWriter, r *http.Request) {
 		Preload("Replies", func(db *gorm.DB) *gorm.DB {
 			return db.Where("deleted = ? OR deleted IS NULL", false)
 		}).
+		Preload("Replies.Author"). // Загружаем автора реплая
 		Preload("Author").
 		Where("post_id = ? AND (deleted = false OR deleted IS NULL)", postID).
 		Find(&comments).Error; err != nil {
@@ -48,6 +49,26 @@ func GetComments(w http.ResponseWriter, r *http.Request) {
 	// Преобразуем данные в нужный формат
 	var response []map[string]interface{}
 	for _, comment := range comments {
+		var replies []map[string]interface{}
+		for _, reply := range comment.Replies {
+			replies = append(replies, map[string]interface{}{
+				"id":         reply.ID,
+				"content":    reply.Content,
+				"post_id":    reply.PostID,
+				"author_id":  reply.AuthorID,
+				"parent_id":  reply.ParentID,
+				"likes":      reply.Likes,
+				"edited":     reply.Edited,
+				"deleted":    reply.Deleted,
+				"created_at": reply.CreatedAt,
+				"updated_at": reply.UpdatedAt,
+				"author": map[string]interface{}{
+					"name":     reply.Author.Username,
+					"imageUrl": reply.Author.Avatar,
+				},
+			})
+		}
+
 		response = append(response, map[string]interface{}{
 			"id":         comment.ID,
 			"content":    comment.Content,
@@ -59,7 +80,7 @@ func GetComments(w http.ResponseWriter, r *http.Request) {
 			"deleted":    comment.Deleted,
 			"created_at": comment.CreatedAt,
 			"updated_at": comment.UpdatedAt,
-			"replies":    comment.Replies,
+			"replies":    replies, // Теперь реплай содержит только нужные поля
 			"author": map[string]interface{}{
 				"name":     comment.Author.Username,
 				"imageUrl": comment.Author.Avatar,
