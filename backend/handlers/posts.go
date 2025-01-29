@@ -656,6 +656,7 @@ func LikePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Создаем лайк
 	like := models.Like{
 		UserID: uint(userID),
 		PostID: uintPtr(uint(postID)),
@@ -664,6 +665,15 @@ func LikePost(w http.ResponseWriter, r *http.Request) {
 	if err := database.DB.Create(&like).Error; err != nil {
 		http.Error(w, "Failed to like post", http.StatusInternalServerError)
 		return
+	}
+
+	// Получаем владельца поста
+	var post models.Post
+	if err := database.DB.Where("id = ?", postID).First(&post).Error; err == nil {
+		// Проверяем, чтобы пользователь не лайкал свой пост (не отправляем себе уведомления)
+		if post.AuthorID != uint(userID) {
+			NotifyLikePost(post.AuthorID, uint(postID), uint(userID))
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

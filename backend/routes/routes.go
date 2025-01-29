@@ -53,10 +53,9 @@ func initUserRoutes(router *mux.Router) {
 	router.HandleFunc("/users/{id:[0-9]+}", handlers.UpdateProfile).Methods("PUT") // Update user profile
 }
 
+// initNotificationRoutes регистрирует маршруты уведомлений
 func initNotificationRoutes(router *mux.Router) {
 	router.HandleFunc("/notifications", handlers.GetNotifications).Methods("GET") // Получение уведомлений
-	router.HandleFunc("/notifications/{id}/reaction", handlers.ReactToNotification).Methods("POST")
-	router.HandleFunc("/notifications/{id}/reactions", handlers.GetReactionsForNotification).Methods("GET")
 }
 
 // Добавляем функцию для маршрута /posts/myblogs

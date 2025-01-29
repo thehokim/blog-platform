@@ -100,12 +100,14 @@ func CreateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Создаём комментарий
 	comment := models.Comment{
 		Content:  input.Content,
 		PostID:   uint(postID),
 		AuthorID: uint(userID),
 	}
 
+	// Сохраняем в базе
 	if err := database.DB.Create(&comment).Error; err != nil {
 		http.Error(w, "Failed to create comment", http.StatusInternalServerError)
 		return
@@ -118,6 +120,15 @@ func CreateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Получаем владельца поста и отправляем уведомление
+	var post models.Post
+	if err := database.DB.Where("id = ?", comment.PostID).First(&post).Error; err == nil {
+		if post.AuthorID != comment.AuthorID {
+			NotifyComment(post.AuthorID, comment.PostID, comment.AuthorID)
+		}
+	}
+
+	// Формируем JSON-ответ
 	response := map[string]interface{}{
 		"id":         comment.ID,
 		"content":    comment.Content,
@@ -136,6 +147,7 @@ func CreateComment(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	// Отправляем ответ
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
@@ -256,37 +268,30 @@ func LikeComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if comment exists
+	// Проверяем, существует ли комментарий
 	var comment models.Comment
 	if err := database.DB.First(&comment, commentID).Error; err != nil {
 		respondWithError(w, http.StatusNotFound, "Comment not found")
 		return
 	}
 
-	// Check if user already liked the comment
-	var count int64
-	database.DB.Model(&models.Like{}).Where("user_id = ? AND comment_id = ?", userID, commentID).Count(&count)
-	if count > 0 {
+	// Проверяем, лайкнул ли пользователь уже этот комментарий
+	var existingLike models.Like
+	if err := database.DB.Where("user_id = ? AND comment_id = ?", userID, commentID).First(&existingLike).Error; err == nil {
 		respondWithError(w, http.StatusConflict, "User has already liked this comment")
 		return
 	}
 
-	// Insert like
+	// Добавляем лайк
 	like := models.Like{UserID: uint(userID), CommentID: uintPtr(uint(commentID))}
 	if err := database.DB.Create(&like).Error; err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to like comment")
 		return
 	}
 
-	// Create notification
-	notification := models.Notification{
-		UserID:    comment.AuthorID,
-		Type:      "like_comment",
-		CommentID: uintPtr(uint(commentID)),
-		Message:   fmt.Sprintf("User %d liked your comment", userID),
-	}
-	if err := database.DB.Create(&notification).Error; err != nil {
-		log.Printf("Failed to create notification: %v", err)
+	// Отправляем уведомление автору комментария (если это не сам пользователь)
+	if comment.AuthorID != uint(userID) {
+		NotifyLikeComment(comment.AuthorID, uint(commentID), uint(userID))
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Comment liked successfully"})
@@ -398,6 +403,7 @@ func ReplyToComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Создаём реплай
 	reply := models.Reply{
 		Content:  input.Content,
 		PostID:   parentComment.PostID,
@@ -412,14 +418,19 @@ func ReplyToComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Загружаем данные автора для ответа
+	// Загружаем данные автора реплая
 	var author models.User
 	if err := database.DB.First(&author, userID).Error; err != nil {
 		http.Error(w, "Failed to retrieve author details", http.StatusInternalServerError)
 		return
 	}
 
-	// Формируем ответ с информацией об авторе
+	// Уведомляем автора комментария (если ответил другой пользователь)
+	if parentComment.AuthorID != uint(userID) {
+		NotifyReply(parentComment.AuthorID, uint(commentID), uint(userID))
+	}
+
+	// Формируем JSON-ответ
 	response := map[string]interface{}{
 		"id":         reply.ID,
 		"content":    reply.Content,
@@ -611,29 +622,28 @@ func LikeReply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if reply exists
+	// Проверяем, существует ли реплай
 	var reply models.Reply
 	if err := database.DB.First(&reply, replyID).Error; err != nil {
 		respondWithError(w, http.StatusNotFound, "Reply not found")
 		return
 	}
 
-	// Check if the user has already liked the reply
-	var count int64
-	database.DB.Model(&models.Like{}).Where("user_id = ? AND reply_id = ?", userID, replyID).Count(&count)
-	if count > 0 {
+	// Проверяем, лайкнул ли пользователь уже этот реплай
+	var existingLike models.Like
+	if err := database.DB.Where("user_id = ? AND reply_id = ?", userID, replyID).First(&existingLike).Error; err == nil {
 		respondWithError(w, http.StatusConflict, "User has already liked this reply")
 		return
 	}
 
-	// Insert like
+	// Добавляем лайк
 	like := models.Like{UserID: uint(userID), ReplyID: uintPtr(uint(replyID))}
 	if err := database.DB.Create(&like).Error; err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to like reply")
 		return
 	}
 
-	// Increment like counter
+	// Увеличиваем счётчик лайков
 	if err := database.DB.Model(&models.Reply{}).
 		Where("id = ?", replyID).
 		Update("likes", gorm.Expr("likes + 1")).Error; err != nil {
@@ -641,15 +651,9 @@ func LikeReply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create notification
-	notification := models.Notification{
-		UserID:  reply.AuthorID,
-		Type:    "like_reply",
-		ReplyID: uintPtr(uint(replyID)),
-		Message: fmt.Sprintf("User %d liked your reply", userID),
-	}
-	if err := database.DB.Create(&notification).Error; err != nil {
-		log.Printf("Failed to create notification: %v", err)
+	// Уведомляем автора реплая (если лайк поставил другой пользователь)
+	if reply.AuthorID != uint(userID) {
+		NotifyLikeReply(reply.AuthorID, uint(replyID), uint(userID))
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Reply liked successfully"})

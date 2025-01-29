@@ -2,17 +2,27 @@ package handlers
 
 import (
 	"blog-platform/database"
-	"blog-platform/models"
 	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
 	"strconv"
-
-	"github.com/gorilla/mux"
+	"time"
 )
 
-// GetNotifications returns a list of notifications for a user
+// Notification структура модели (ОСТАВЛЯЕМ ТОЛЬКО ЭТУ ВЕРСИЮ)
+type Notification struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `gorm:"not null" json:"user_id"`
+	Type      string    `gorm:"not null" json:"type"` // like_post, comment, like_comment, reply, like_reply
+	PostID    *uint     `json:"post_id,omitempty"`
+	CommentID *uint     `json:"comment_id,omitempty"`
+	ReplyID   *uint     `json:"reply_id,omitempty"`
+	Message   string    `gorm:"not null" json:"message"`
+	IsRead    bool      `gorm:"default:false" json:"is_read"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetNotifications возвращает уведомления для пользователя
 func GetNotifications(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.URL.Query().Get("user_id")
 	if userIDStr == "" {
@@ -20,15 +30,14 @@ func GetNotifications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Convert userID to integer for validation
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
 		http.Error(w, "Invalid User ID format", http.StatusBadRequest)
 		return
 	}
 
-	var notifications []models.Notification
-	// Fetch notifications for the user, ordered by the most recent
+	var notifications []Notification
+	// Получаем уведомления пользователя, сортируя по дате (новые сверху)
 	if err := database.DB.Where("user_id = ?", userID).Order("created_at DESC").Find(&notifications).Error; err != nil {
 		http.Error(w, "Failed to fetch notifications", http.StatusInternalServerError)
 		return
@@ -38,76 +47,68 @@ func GetNotifications(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(notifications)
 }
 
-// ReactToNotification - Add a reaction to a notification
-func ReactToNotification(w http.ResponseWriter, r *http.Request) {
-	notificationID, err := strconv.Atoi(mux.Vars(r)["id"])
-	if err != nil {
-		http.Error(w, "Invalid Notification ID format", http.StatusBadRequest)
-		return
+// CreateNotification добавляет новое уведомление
+func CreateNotification(userID uint, notifType string, postID, commentID, replyID *uint, message string) error {
+	notification := Notification{
+		UserID:    userID,
+		Type:      notifType,
+		PostID:    postID,
+		CommentID: commentID,
+		ReplyID:   replyID,
+		Message:   message,
+		IsRead:    false,
+		CreatedAt: time.Now(),
 	}
 
-	userID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
-	if err != nil {
-		http.Error(w, "Invalid User ID format", http.StatusBadRequest)
-		return
-	}
-
-	var input struct {
-		Type string `json:"type"` // Тип реакции: "like", "dislike", "emoji"
-	}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-		return
-	}
-
-	// Проверяем, существует ли указанное уведомление
-	var notification models.Notification
-	if err := database.DB.First(&notification, notificationID).Error; err != nil {
-		http.Error(w, "Notification not found", http.StatusNotFound)
-		return
-	}
-
-	// Создаем новую реакцию
-	reaction := models.Reaction{
-		UserID:         uint(userID),
-		NotificationID: uintPtr(uint(notificationID)),
-		Type:           input.Type,
-	}
-
-	if err := database.DB.Create(&reaction).Error; err != nil {
-		http.Error(w, "Failed to create reaction", http.StatusInternalServerError)
-		return
-	}
-
-	// Создаем уведомление для пользователя, на чье уведомление отреагировали
-	newNotification := models.Notification{
-		UserID:         notification.UserID,
-		Type:           "reaction_to_notification",
-		Message:        fmt.Sprintf("User %d reacted to your notification", userID),
-		NotificationID: uintPtr(uint(notificationID)),
-	}
-	if err := database.DB.Create(&newNotification).Error; err != nil {
-		log.Printf("Failed to create notification: %v", err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "Reaction added successfully"})
+	return database.DB.Create(&notification).Error
 }
 
-// GetReactionsForNotification - Retrieve all reactions for a notification
-func GetReactionsForNotification(w http.ResponseWriter, r *http.Request) {
-	notificationID, err := strconv.Atoi(mux.Vars(r)["id"])
-	if err != nil {
-		http.Error(w, "Invalid Notification ID format", http.StatusBadRequest)
+// NotifyLikePost отправляет уведомление о лайке поста
+func NotifyLikePost(userID uint, postID uint, likerID uint) {
+	if userID == likerID {
 		return
 	}
 
-	var reactions []models.Reaction
-	if err := database.DB.Where("notification_id = ?", notificationID).Find(&reactions).Error; err != nil {
-		http.Error(w, "Failed to fetch reactions", http.StatusInternalServerError)
+	message := "Ваш пост получил новый лайк"
+	CreateNotification(userID, "like_post", &postID, nil, nil, message)
+}
+
+// NotifyComment отправляет уведомление о новом комментарии
+func NotifyComment(userID uint, postID uint, commenterID uint) {
+	if userID == commenterID {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(reactions)
+	message := "Ваш пост получил новый комментарий"
+	CreateNotification(userID, "comment", &postID, nil, nil, message)
+}
+
+// NotifyLikeComment отправляет уведомление о лайке комментария
+func NotifyLikeComment(userID uint, commentID uint, likerID uint) {
+	if userID == likerID {
+		return
+	}
+
+	message := "Ваш комментарий получил новый лайк"
+	CreateNotification(userID, "like_comment", nil, &commentID, nil, message)
+}
+
+// NotifyReply отправляет уведомление о новом реплае (ответе на комментарий)
+func NotifyReply(userID uint, commentID uint, replierID uint) {
+	if userID == replierID {
+		return
+	}
+
+	message := "На ваш комментарий оставили ответ"
+	CreateNotification(userID, "reply", nil, &commentID, nil, message)
+}
+
+// NotifyLikeReply отправляет уведомление о лайке реплая
+func NotifyLikeReply(userID uint, replyID uint, likerID uint) {
+	if userID == likerID {
+		return
+	}
+
+	message := "Ваш ответ получил новый лайк"
+	CreateNotification(userID, "like_reply", nil, nil, &replyID, message)
 }

@@ -97,17 +97,8 @@ type Notification struct {
 	IsRead         bool       `gorm:"default:false"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
-	Reactions      []Reaction `gorm:"foreignKey:NotificationID"` // Связь с реакциями
 }
 
-type Reaction struct {
-	ID             uint      `gorm:"primaryKey"`
-	UserID         uint      `gorm:"not null;index"`
-	NotificationID *uint     `gorm:"index;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"` // ID уведомления
-	Type           string    `gorm:"not null"`                                            // Тип реакции ("like", "dislike", "emoji")
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
-}
 
 type SavedPost struct {
 	ID        uint `gorm:"primaryKey"`
