@@ -520,44 +520,41 @@ func UpdateReply(w http.ResponseWriter, r *http.Request) {
 
 func GetReplies(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	replyIDStr := vars["id"]
-	replyID, err := strconv.Atoi(replyIDStr)
+	commentIDStr := vars["id"] // Это ID комментария, а не реплая!
+	commentID, err := strconv.Atoi(commentIDStr)
 	if err != nil {
-		http.Error(w, "Invalid Reply ID", http.StatusBadRequest)
+		http.Error(w, "Invalid Comment ID", http.StatusBadRequest)
 		return
 	}
 
-	var reply models.Reply
+	var replies []models.Reply
 
-	// Загружаем данные ответа с информацией об авторе
-	if err := database.DB.Preload("Author").First(&reply, replyID).Error; err != nil {
-		http.Error(w, "Reply not found", http.StatusNotFound)
+	// Загружаем все ответы к комментарию
+	if err := database.DB.Where("parent_id = ?", commentID).
+		Preload("Author").Find(&replies).Error; err != nil {
+		http.Error(w, "Replies not found", http.StatusNotFound)
 		return
 	}
 
-	var likeCount int64
-	// Подсчет количества лайков для ответа
-	if err := database.DB.Model(&models.Like{}).Where("reply_id = ?", replyID).Count(&likeCount).Error; err != nil {
-		http.Error(w, "Failed to fetch like count", http.StatusInternalServerError)
-		return
-	}
-
-	// Формируем ответ с автором и лайками
-	response := map[string]interface{}{
-		"id":         reply.ID,
-		"content":    reply.Content,
-		"post_id":    reply.PostID,
-		"author_id":  reply.AuthorID,
-		"parent_id":  reply.ParentID,
-		"likes":      likeCount,
-		"edited":     reply.Edited,
-		"deleted":    reply.Deleted,
-		"created_at": reply.CreatedAt,
-		"updated_at": reply.UpdatedAt,
-		"author": map[string]interface{}{
-			"name":     reply.Author.Username,
-			"imageUrl": reply.Author.Avatar,
-		},
+	// Формируем JSON-ответ
+	var response []map[string]interface{}
+	for _, reply := range replies {
+		response = append(response, map[string]interface{}{
+			"id":         reply.ID,
+			"content":    reply.Content,
+			"post_id":    reply.PostID,
+			"author_id":  reply.AuthorID,
+			"parent_id":  reply.ParentID,
+			"likes":      reply.Likes,
+			"edited":     reply.Edited,
+			"deleted":    reply.Deleted,
+			"created_at": reply.CreatedAt,
+			"updated_at": reply.UpdatedAt,
+			"author": map[string]interface{}{
+				"name":     reply.Author.Username,
+				"imageUrl": reply.Author.Avatar,
+			},
+		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
