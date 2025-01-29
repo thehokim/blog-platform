@@ -62,14 +62,14 @@ type Comment struct {
 }
 
 type Reply struct {
-	ID        uint      `gorm:"primaryKey"`
-	Content   string    `gorm:"not null"`
-	PostID    uint      `gorm:"index;constraint:OnDelete:CASCADE;"`
-	AuthorID  uint      `gorm:"not null;index"`
-	ParentID  uint      `gorm:"not null;index;constraint:OnDelete:CASCADE;"` // Включаем каскадное удаление
-	Likes     int       `gorm:"default:0"`
-	Edited    bool      `gorm:"default:false"`
-	Deleted   bool      `gorm:"default:false"`
+	ID        uint      `json:"id"`
+	Content   string    `json:"content"`
+	PostID    uint      `json:"post_id"`
+	AuthorID  uint      `json:"author_id"`
+	ParentID  uint      `json:"parent_id"`
+	Likes     int       `json:"likes"`
+	Edited    bool      `json:"edited"`
+	Deleted   bool      `json:"deleted"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Author    User      `json:"author" gorm:"foreignKey:AuthorID"`
@@ -86,19 +86,18 @@ type Like struct {
 }
 
 type Notification struct {
-	ID             uint       `gorm:"primaryKey"`
-	UserID         uint       `gorm:"not null"`
-	Type           string     `gorm:"not null"` // Например, "like", "comment", "reaction_to_notification"
-	PostID         *uint      `json:"post_id,omitempty"`
-	CommentID      *uint      `json:"comment_id,omitempty"`
-	ReplyID        *uint      `json:"reply_id,omitempty"`
-	NotificationID *uint      `json:"notification_id,omitempty"` // ID родительского уведомления
-	Message        string     `gorm:"not null"`
-	IsRead         bool       `gorm:"default:false"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	ID             uint      `gorm:"primaryKey"`
+	UserID         uint      `gorm:"not null"`
+	Type           string    `gorm:"not null"` // Например, "like", "comment", "reaction_to_notification"
+	PostID         *uint     `json:"post_id,omitempty"`
+	CommentID      *uint     `json:"comment_id,omitempty"`
+	ReplyID        *uint     `json:"reply_id,omitempty"`
+	NotificationID *uint     `json:"notification_id,omitempty"` // ID родительского уведомления
+	Message        string    `gorm:"not null"`
+	IsRead         bool      `gorm:"default:false"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
-
 
 type SavedPost struct {
 	ID        uint `gorm:"primaryKey"`
