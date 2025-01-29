@@ -91,6 +91,7 @@ type Notification struct {
 	Type           string     `gorm:"not null"` // Например, "like", "comment", "reaction_to_notification"
 	PostID         *uint      `json:"post_id,omitempty"`
 	CommentID      *uint      `json:"comment_id,omitempty"`
+	ReplyID        *uint      `json:"reply_id,omitempty"`
 	NotificationID *uint      `json:"notification_id,omitempty"` // ID родительского уведомления
 	Message        string     `gorm:"not null"`
 	IsRead         bool       `gorm:"default:false"`
