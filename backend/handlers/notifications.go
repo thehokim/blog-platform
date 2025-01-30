@@ -22,7 +22,6 @@ type Notification struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// GetNotifications возвращает уведомления для пользователя
 func GetNotifications(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.URL.Query().Get("user_id")
 	if userIDStr == "" {
@@ -37,8 +36,14 @@ func GetNotifications(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var notifications []Notification
-	// Получаем уведомления пользователя, сортируя по дате (новые сверху)
-	if err := database.DB.Where("user_id = ?", userID).Order("created_at DESC").Find(&notifications).Error; err != nil {
+
+	// Загружаем все уведомления, относящиеся к пользователю:
+	err = database.DB.
+		Where("user_id = ? OR post_id IN (SELECT id FROM posts WHERE author_id = ?) OR comment_id IN (SELECT id FROM comments WHERE user_id = ?)", userID, userID, userID).
+		Order("created_at DESC").
+		Find(&notifications).Error
+
+	if err != nil {
 		http.Error(w, "Failed to fetch notifications", http.StatusInternalServerError)
 		return
 	}
