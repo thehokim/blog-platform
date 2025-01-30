@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Notification структура модели (ОСТАВЛЯЕМ ТОЛЬКО ЭТУ ВЕРСИЮ)
+// Notification структура модели
 type Notification struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	UserID    uint      `gorm:"not null" json:"user_id"`
@@ -22,6 +22,14 @@ type Notification struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// User структура для хранения данных об авторе
+type User struct {
+	ID       uint   `json:"id"`
+	Username string `json:"name"`
+	Avatar   string `json:"imageUrl"`
+}
+
+// GetNotifications получает уведомления с данными об авторе
 func GetNotifications(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.URL.Query().Get("user_id")
 	if userIDStr == "" {
@@ -36,8 +44,6 @@ func GetNotifications(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var notifications []Notification
-
-	// Загружаем все уведомления, относящиеся к пользователю:
 	err = database.DB.
 		Where("user_id = ? OR post_id IN (SELECT id FROM posts WHERE author_id = ?) OR comment_id IN (SELECT id FROM comments WHERE user_id = ?)", userID, userID, userID).
 		Order("created_at DESC").
@@ -48,12 +54,66 @@ func GetNotifications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var enrichedNotifications []map[string]interface{}
+
+	for _, notif := range notifications {
+		var author User
+		err := database.DB.Raw(`SELECT id, username, avatar FROM users WHERE id = ?`, notif.UserID).Scan(&author).Error
+		if err != nil {
+			continue
+		}
+
+		message := formatMessage(notif.Type, author.ID)
+
+		enrichedNotification := map[string]interface{}{
+			"id":         notif.ID,
+			"user_id":    notif.UserID,
+			"type":       notif.Type,
+			"post_id":    notif.PostID,
+			"comment_id": notif.CommentID,
+			"reply_id":   notif.ReplyID,
+			"message":    message,
+			"is_read":    notif.IsRead,
+			"created_at": notif.CreatedAt,
+			"updated_at": notif.UpdatedAt,
+			"author": map[string]interface{}{
+				"id":       author.ID,
+				"name":     author.Username,
+				"imageUrl": author.Avatar,
+			},
+		}
+
+		enrichedNotifications = append(enrichedNotifications, enrichedNotification)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(notifications)
+	json.NewEncoder(w).Encode(enrichedNotifications)
+}
+
+// formatMessage формирует сообщение с ID автора
+func formatMessage(notifType string, authorID uint) string {
+	authorStr := strconv.Itoa(int(authorID))
+
+	switch notifType {
+	case "like_post":
+		return "User " + authorStr + " liked your post"
+	case "comment":
+		return "User " + authorStr + " commented on your post"
+	case "like_comment":
+		return "User " + authorStr + " liked your comment"
+	case "reply":
+		return "User " + authorStr + " replied to your comment"
+	case "like_reply":
+		return "User " + authorStr + " liked your reply"
+	default:
+		return "New notification from user " + authorStr
+	}
 }
 
 // CreateNotification добавляет новое уведомление
-func CreateNotification(userID uint, notifType string, postID, commentID, replyID *uint, message string) error {
+func CreateNotification(userID, authorID uint, notifType string, postID, commentID, replyID *uint) error {
+	message := formatMessage(notifType, authorID)
+
 	notification := Notification{
 		UserID:    userID,
 		Type:      notifType,
@@ -69,51 +129,41 @@ func CreateNotification(userID uint, notifType string, postID, commentID, replyI
 }
 
 // NotifyLikePost отправляет уведомление о лайке поста
-func NotifyLikePost(userID uint, postID uint, likerID uint) {
+func NotifyLikePost(userID, postID, likerID uint) {
 	if userID == likerID {
 		return
 	}
-
-	message := "Ваш пост получил новый лайк"
-	CreateNotification(userID, "like_post", &postID, nil, nil, message)
+	CreateNotification(userID, likerID, "like_post", &postID, nil, nil)
 }
 
 // NotifyComment отправляет уведомление о новом комментарии
-func NotifyComment(userID uint, postID uint, commenterID uint) {
+func NotifyComment(userID, postID, commenterID uint) {
 	if userID == commenterID {
 		return
 	}
-
-	message := "Ваш пост получил новый комментарий"
-	CreateNotification(userID, "comment", &postID, nil, nil, message)
+	CreateNotification(userID, commenterID, "comment", &postID, nil, nil)
 }
 
 // NotifyLikeComment отправляет уведомление о лайке комментария
-func NotifyLikeComment(userID uint, commentID uint, likerID uint) {
+func NotifyLikeComment(userID, commentID, likerID uint) {
 	if userID == likerID {
 		return
 	}
-
-	message := "Ваш комментарий получил новый лайк"
-	CreateNotification(userID, "like_comment", nil, &commentID, nil, message)
+	CreateNotification(userID, likerID, "like_comment", nil, &commentID, nil)
 }
 
-// NotifyReply отправляет уведомление о новом реплае (ответе на комментарий)
-func NotifyReply(userID uint, commentID uint, replierID uint) {
+// NotifyReply отправляет уведомление о новом реплае
+func NotifyReply(userID, commentID, replierID uint) {
 	if userID == replierID {
 		return
 	}
-
-	message := "На ваш комментарий оставили ответ"
-	CreateNotification(userID, "reply", nil, &commentID, nil, message)
+	CreateNotification(userID, replierID, "reply", nil, &commentID, nil)
 }
 
 // NotifyLikeReply отправляет уведомление о лайке реплая
-func NotifyLikeReply(userID uint, replyID uint, likerID uint) {
+func NotifyLikeReply(userID, replyID, likerID uint) {
 	if userID == likerID {
 		return
 	}
-
-	message := "Ваш ответ получил новый лайк"
-	CreateNotification(userID, "like_reply", nil, nil, &replyID, message)
+	CreateNotification(userID, likerID, "like_reply", nil, nil, &replyID)
 }
