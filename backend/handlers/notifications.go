@@ -31,7 +31,7 @@ type User struct {
 
 // GetNotifications получает уведомления с данными об авторе
 func GetNotifications(w http.ResponseWriter, r *http.Request) {
-	userIDStr := r.URL.Query().Get("user_id")
+	userIDStr := r.URL.Query().Get("userId")
 	if userIDStr == "" {
 		http.Error(w, "User ID is required", http.StatusBadRequest)
 		return
