@@ -12,7 +12,7 @@ import (
 type Notification struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	UserID    uint      `gorm:"not null" json:"user_id"`
-	Type      string    `gorm:"not null" json:"type"` // like_post, comment, like_comment, reply, like_reply
+	Type      string    `gorm:"not null" json:"type"`
 	PostID    *uint     `json:"post_id,omitempty"`
 	CommentID *uint     `json:"comment_id,omitempty"`
 	ReplyID   *uint     `json:"reply_id,omitempty"`
@@ -29,7 +29,7 @@ type User struct {
 	Avatar   string `json:"imageUrl"`
 }
 
-// GetNotifications получает уведомления с данными об авторе
+// GetNotifications получает уведомления с данными об авторе и текстом комментария/ответа
 func GetNotifications(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.URL.Query().Get("userId")
 	if userIDStr == "" {
@@ -65,6 +65,17 @@ func GetNotifications(w http.ResponseWriter, r *http.Request) {
 
 		message := formatMessage(notif.Type, author.ID)
 
+		// Получаем текст комментария или ответа
+		var commentText string
+		if notif.CommentID != nil {
+			database.DB.Raw(`SELECT content FROM comments WHERE id = ?`, *notif.CommentID).Scan(&commentText)
+		}
+
+		var replyText string
+		if notif.ReplyID != nil {
+			database.DB.Raw(`SELECT content FROM replies WHERE id = ?`, *notif.ReplyID).Scan(&replyText)
+		}
+
 		enrichedNotification := map[string]interface{}{
 			"id":         notif.ID,
 			"user_id":    notif.UserID,
@@ -81,6 +92,8 @@ func GetNotifications(w http.ResponseWriter, r *http.Request) {
 				"name":     author.Username,
 				"imageUrl": author.Avatar,
 			},
+			"comment_text": commentText, // Добавляем текст комментария
+			"reply_text":   replyText,   // Добавляем текст ответа
 		}
 
 		enrichedNotifications = append(enrichedNotifications, enrichedNotification)
