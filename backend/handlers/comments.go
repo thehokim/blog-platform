@@ -145,7 +145,8 @@ func CreateComment(w http.ResponseWriter, r *http.Request) {
 	var post models.Post
 	if err := database.DB.Where("id = ?", comment.PostID).First(&post).Error; err == nil {
 		if post.AuthorID != comment.AuthorID {
-			NotifyComment(post.AuthorID, comment.PostID, comment.AuthorID)
+			fmt.Println("Calling NotifyComment with:", post.AuthorID, comment.PostID, comment.AuthorID, comment.ID)
+			NotifyComment(post.AuthorID, comment.PostID, comment.AuthorID, comment.ID)
 		}
 	}
 

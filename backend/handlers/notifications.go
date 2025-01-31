@@ -2,34 +2,14 @@ package handlers
 
 import (
 	"blog-platform/database"
+	"blog-platform/models"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 )
 
-// Notification структура модели
-type Notification struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	UserID    uint      `gorm:"not null" json:"user_id"`
-	Type      string    `gorm:"not null" json:"type"`
-	PostID    *uint     `json:"post_id,omitempty"`
-	CommentID *uint     `json:"comment_id,omitempty"`
-	ReplyID   *uint     `json:"reply_id,omitempty"`
-	Message   string    `gorm:"not null" json:"message"`
-	IsRead    bool      `gorm:"default:false" json:"is_read"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-// User структура для хранения данных об авторе
-type User struct {
-	ID       uint   `json:"id"`
-	Username string `json:"name"`
-	Avatar   string `json:"imageUrl"`
-}
-
-// GetNotifications получает уведомления с данными об авторе и текстом комментария/ответа
 func GetNotifications(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.URL.Query().Get("userId")
 	if userIDStr == "" {
@@ -43,91 +23,116 @@ func GetNotifications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var notifications []Notification
+	fmt.Println("Fetching notifications for userID:", userID)
+
+	var notifications []models.Notification
 	err = database.DB.
-		Where("user_id = ? OR post_id IN (SELECT id FROM posts WHERE author_id = ?) OR comment_id IN (SELECT id FROM comments WHERE user_id = ?)", userID, userID, userID).
+		Where("user_id = ? OR post_id IN (SELECT id FROM posts WHERE author_id = ?) OR comment_id IN (SELECT id FROM comments WHERE author_id = ?)", userID, userID, userID).
 		Order("created_at DESC").
 		Find(&notifications).Error
 
 	if err != nil {
+		fmt.Println("Error fetching notifications:", err)
 		http.Error(w, "Failed to fetch notifications", http.StatusInternalServerError)
 		return
 	}
 
+	fmt.Println("Found notifications:", len(notifications))
+
+	if len(notifications) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]interface{}{})
+		return
+	}
+
 	var enrichedNotifications []map[string]interface{}
-
 	for _, notif := range notifications {
-		var author User
-		err := database.DB.Raw(`SELECT id, username, avatar FROM users WHERE id = ?`, notif.UserID).Scan(&author).Error
-		if err != nil {
-			continue
-		}
-
-		message := formatMessage(notif.Type, author.ID)
-
-		// Получаем текст комментария или ответа
-		var commentText string
-		if notif.CommentID != nil {
-			database.DB.Raw(`SELECT content FROM comments WHERE id = ?`, *notif.CommentID).Scan(&commentText)
-		}
-
-		var replyText string
-		if notif.ReplyID != nil {
-			database.DB.Raw(`SELECT content FROM replies WHERE id = ?`, *notif.ReplyID).Scan(&replyText)
-		}
-
-		enrichedNotification := map[string]interface{}{
+		enrichedNotif := map[string]interface{}{
 			"id":         notif.ID,
 			"user_id":    notif.UserID,
 			"type":       notif.Type,
 			"post_id":    notif.PostID,
 			"comment_id": notif.CommentID,
 			"reply_id":   notif.ReplyID,
-			"message":    message,
+			"message":    notif.Message,
 			"is_read":    notif.IsRead,
 			"created_at": notif.CreatedAt,
 			"updated_at": notif.UpdatedAt,
-			"author": map[string]interface{}{
-				"id":       author.ID,
-				"name":     author.Username,
-				"imageUrl": author.Avatar,
-			},
-			"comment_text": commentText, // Добавляем текст комментария
-			"reply_text":   replyText,   // Добавляем текст ответа
 		}
 
-		enrichedNotifications = append(enrichedNotifications, enrichedNotification)
+		// Проверяем comment_id и загружаем комментарий
+		if notif.CommentID != nil {
+			fmt.Println("Loading comment for notification ID:", notif.ID, "CommentID:", *notif.CommentID)
+			var comment models.Comment
+			if err := database.DB.Preload("Author").First(&comment, *notif.CommentID).Error; err == nil {
+				enrichedNotif["comment_content"] = comment.Content
+				enrichedNotif["author"] = map[string]interface{}{
+					"name":     comment.Author.Username,
+					"imageUrl": comment.Author.Avatar,
+				}
+			} else {
+				fmt.Println("Comment not found for ID:", *notif.CommentID)
+			}
+		}
+
+		// Проверяем reply_id и загружаем реплай
+		if notif.ReplyID != nil {
+			fmt.Println("Loading reply for notification ID:", notif.ID, "ReplyID:", *notif.ReplyID)
+			var reply models.Reply
+			if err := database.DB.Preload("Author").First(&reply, *notif.ReplyID).Error; err == nil {
+				enrichedNotif["reply_content"] = reply.Content
+				enrichedNotif["author"] = map[string]interface{}{
+					"name":     reply.Author.Username,
+					"imageUrl": reply.Author.Avatar,
+				}
+			} else {
+				fmt.Println("Reply not found for ID:", *notif.ReplyID)
+			}
+		}
+
+		enrichedNotifications = append(enrichedNotifications, enrichedNotif)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(enrichedNotifications)
 }
 
-// formatMessage формирует сообщение с ID автора
-func formatMessage(notifType string, authorID uint) string {
-	authorStr := strconv.Itoa(int(authorID))
+// formatMessage формирует правильное сообщение
+func formatMessage(notifType, authorName string) string {
+	if authorName == "" {
+		authorName = "Unknown User"
+	}
 
 	switch notifType {
 	case "like_post":
-		return "User " + authorStr + " liked your post"
+		return "User " + authorName + " liked your post"
 	case "comment":
-		return "User " + authorStr + " commented on your post"
+		return "User " + authorName + " commented on your post"
 	case "like_comment":
-		return "User " + authorStr + " liked your comment"
+		return "User " + authorName + " liked your comment"
 	case "reply":
-		return "User " + authorStr + " replied to your comment"
+		return "User " + authorName + " replied to your comment"
 	case "like_reply":
-		return "User " + authorStr + " liked your reply"
+		return "User " + authorName + " liked your reply"
 	default:
-		return "New notification from user " + authorStr
+		return "New notification from " + authorName
 	}
 }
 
-// CreateNotification добавляет новое уведомление
 func CreateNotification(userID, authorID uint, notifType string, postID, commentID, replyID *uint) error {
-	message := formatMessage(notifType, authorID)
+	var author models.User
+	err := database.DB.First(&author, authorID).Error
+	if err != nil {
+		return err
+	}
 
-	notification := Notification{
+	message := formatMessage(notifType, author.Username)
+
+	// Логируем перед созданием уведомления
+	fmt.Println("Creating notification: userID:", userID, "authorID:", authorID, "type:", notifType,
+		"postID:", postID, "commentID:", commentID, "replyID:", replyID)
+
+	notification := models.Notification{
 		UserID:    userID,
 		Type:      notifType,
 		PostID:    postID,
@@ -138,7 +143,11 @@ func CreateNotification(userID, authorID uint, notifType string, postID, comment
 		CreatedAt: time.Now(),
 	}
 
-	return database.DB.Create(&notification).Error
+	err = database.DB.Create(&notification).Error
+	if err != nil {
+		fmt.Println("Error creating notification:", err)
+	}
+	return err
 }
 
 // NotifyLikePost отправляет уведомление о лайке поста
@@ -149,12 +158,15 @@ func NotifyLikePost(userID, postID, likerID uint) {
 	CreateNotification(userID, likerID, "like_post", &postID, nil, nil)
 }
 
-// NotifyComment отправляет уведомление о новом комментарии
-func NotifyComment(userID, postID, commenterID uint) {
+func NotifyComment(userID, postID, commenterID, commentID uint) {
 	if userID == commenterID {
 		return
 	}
-	CreateNotification(userID, commenterID, "comment", &postID, nil, nil)
+
+	// Логирование
+	fmt.Println("NotifyComment called with:", userID, postID, commenterID, commentID)
+
+	CreateNotification(userID, commenterID, "comment", &postID, &commentID, nil)
 }
 
 // NotifyLikeComment отправляет уведомление о лайке комментария

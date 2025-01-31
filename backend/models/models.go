@@ -86,17 +86,16 @@ type Like struct {
 }
 
 type Notification struct {
-	ID             uint      `gorm:"primaryKey"`
-	UserID         uint      `gorm:"not null"`
-	Type           string    `gorm:"not null"` // Например, "like", "comment", "reaction_to_notification"
-	PostID         *uint     `json:"post_id,omitempty"`
-	CommentID      *uint     `json:"comment_id,omitempty"`
-	ReplyID        *uint     `json:"reply_id,omitempty"`
-	NotificationID *uint     `json:"notification_id,omitempty"` // ID родительского уведомления
-	Message        string    `gorm:"not null"`
-	IsRead         bool      `gorm:"default:false"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	UserID    uint      `json:"user_id"`
+	Type      string    `json:"type"`
+	PostID    *uint     `json:"post_id"`
+	CommentID *uint     `json:"comment_id" gorm:"default:null"`
+	ReplyID   *uint     `json:"reply_id" gorm:"default:null"`
+	Message   string    `json:"message"`
+	IsRead    bool      `json:"is_read"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type SavedPost struct {
