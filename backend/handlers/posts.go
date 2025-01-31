@@ -121,6 +121,25 @@ func CreatePostWithContent(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Post created successfully with ID: %d\n", post.ID)
 
+	log.Println("🔹 Checking request Content-Type:", r.Header.Get("Content-Type"))
+
+if err := r.ParseMultipartForm(10 << 20); err != nil {
+	log.Println("❌ Failed to parse multipart form:", err)
+	respondWithError(w, http.StatusBadRequest, "Failed to parse form-data")
+	return
+}
+
+log.Println("✅ Multipart form parsed successfully!")
+
+if imageFiles, ok := r.MultipartForm.File["images"]; ok {
+	log.Println("📸 Found images in request:", len(imageFiles))
+	for _, fileHeader := range imageFiles {
+		log.Println("📂 Image filename:", fileHeader.Filename)
+	}
+} else {
+	log.Println("❌ No images found in the request")
+}
+
 	// **Обработка изображений**
 	var images []models.ImageContent
 	if imageFiles, ok := r.MultipartForm.File["images"]; ok {
