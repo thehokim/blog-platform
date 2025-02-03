@@ -60,6 +60,15 @@ func GetNotifications(w http.ResponseWriter, r *http.Request) {
 			"updated_at": notif.UpdatedAt,
 		}
 
+		// ✅ Mark notifications as read after fetching them
+		err = database.DB.Model(&models.Notification{}).
+			Where("user_id = ? AND is_read = false", userID).
+			Update("is_read", true).Error
+
+		if err != nil {
+			fmt.Println("❌ Error updating notifications to read:", err)
+		}
+
 		// ✅ Fetch Post Title if `like_post` or `comment`
 		if (notif.Type == "like_post" || notif.Type == "comment") && notif.PostID != nil {
 			var post models.Post
@@ -343,4 +352,34 @@ func NotifyLikeReply(userID, replyID, likerID uint) {
 	} else {
 		fmt.Println("❌ Ошибка при загрузке реплая для уведомления:", err)
 	}
+}
+
+// ✅ API: Get unread notifications count
+func GetUnreadNotificationsCount(w http.ResponseWriter, r *http.Request) {
+	userIDStr := r.URL.Query().Get("userId")
+	if userIDStr == "" {
+		http.Error(w, "User ID is required", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "Invalid User ID format", http.StatusBadRequest)
+		return
+	}
+
+	// ✅ Count unread notifications
+	var count int64
+	err = database.DB.Model(&models.Notification{}).
+		Where("user_id = ? AND is_read = false", userID).
+		Count(&count).Error
+
+	if err != nil {
+		fmt.Println("❌ Error fetching unread notifications count:", err)
+		http.Error(w, "Failed to fetch unread notifications count", http.StatusInternalServerError)
+		return
+	}
+
+	// ✅ Return count as JSON response
+	respondWithJSON(w, http.StatusOK, map[string]int64{"count": count})
 }

@@ -43,7 +43,9 @@ func initCommentRoutes(router *mux.Router) {
 	router.HandleFunc("/comments/{comment_id}/replies/{id}", handlers.DeleteReply).Methods("DELETE")            //*
 	router.HandleFunc("/replies/{id:[0-9]+}/like", handlers.LikeReply).Methods("POST")                          // Like reply * isLiked true
 	router.HandleFunc("/replies/{id:[0-9]+}/likes", handlers.GetReplyLikes).Methods("GET")                      // Get reply like count -
-	router.HandleFunc("/replies/{id:[0-9]+}/like", handlers.UnlikeReply).Methods("DELETE")                      // isLiked False
+	router.HandleFunc("/replies/{id:[0-9]+}/like", handlers.UnlikeReply).Methods("DELETE")
+	router.HandleFunc("/notifications/unread", handlers.GetUnreadNotificationsCount).Methods("GET")
+	// isLiked False
 
 }
 
