@@ -156,16 +156,27 @@ func GetNotifications(w http.ResponseWriter, r *http.Request) {
 			if err := database.DB.Preload("Author").First(&reply, *notif.ReplyID).Error; err == nil {
 				fmt.Println("✅ Reply found:", reply.Content, "by", reply.Author.Username)
 
-				// Set the correct reply content
+				// ✅ Set the correct reply content
 				enrichedNotif["reply_content"] = reply.Content
 
-				// Set the correct original author (not the liker)
-				enrichedNotif["reply_author"] = map[string]interface{}{
-					"name":     reply.Author.Username,
-					"imageUrl": reply.Author.Avatar,
+				// ❌ Previously, this set the **original author** (WRONG)
+				// enrichedNotif["reply_author"] = map[string]interface{}{
+				//     "name":     reply.Author.Username,
+				//     "imageUrl": reply.Author.Avatar,
+				// }
+
+				// ✅ Fix: Set the **correct liker** (actor)
+				var liker models.User
+				if err := database.DB.First(&liker, notif.ActorID).Error; err == nil {
+					enrichedNotif["author"] = map[string]interface{}{
+						"name":     liker.Username, // ✅ Liker's name
+						"imageUrl": liker.Avatar,   // ✅ Liker's avatar
+					}
+				} else {
+					fmt.Println("❌ Error fetching liker details:", err)
 				}
 			} else {
-				fmt.Println("❌ Ошибка при загрузке реплая для уведомления:", err)
+				fmt.Println("❌ Error loading reply for notification:", err)
 			}
 		}
 

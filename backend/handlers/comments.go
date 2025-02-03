@@ -696,9 +696,11 @@ func LikeReply(w http.ResponseWriter, r *http.Request) {
 
 	tx.Commit()
 
-	// Уведомляем автора реплая (если лайк поставил другой пользователь)
 	if reply.AuthorID != uint(userID) {
+		fmt.Println("🔹 Sending notification for reply like to user:", reply.AuthorID, "from user:", userID)
 		NotifyLikeReply(reply.AuthorID, uint(replyID), uint(userID))
+	} else {
+		fmt.Println("⚠️ User liked their own reply, skipping notification.")
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Reply liked successfully"})
