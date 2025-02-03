@@ -79,10 +79,11 @@ type Reply struct {
 type Like struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	UserID    uint      `gorm:"not null;index" json:"user_id"`
-	PostID    *uint     `gorm:"index;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"post_id,omitempty"`
-	CommentID *uint     `gorm:"index;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"comment_id,omitempty"`
-	ReplyID   *uint     `gorm:"index;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"reply_id,omitempty"`
+	PostID    *uint     `gorm:"index" json:"post_id,omitempty"`
+	CommentID *uint     `gorm:"index" json:"comment_id,omitempty"`
+	ReplyID   *uint     `gorm:"index" json:"reply_id,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
+	Author    User      `json:"author" gorm:"foreignKey:UserID;references:ID"`
 }
 
 type Notification struct {
