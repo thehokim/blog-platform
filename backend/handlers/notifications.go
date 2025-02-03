@@ -27,7 +27,7 @@ func GetNotifications(w http.ResponseWriter, r *http.Request) {
 
 	var notifications []models.Notification
 	err = database.DB.
-		Where("user_id = ? OR type IN ('like_comment', 'like_reply') OR post_id IN (SELECT id FROM posts WHERE author_id = ?) OR comment_id IN (SELECT id FROM comments WHERE author_id = ?) OR reply_id IN (SELECT id FROM replies WHERE author_id = ?)", userID, userID, userID, userID).
+		Where("user_id = ? OR type IN ('like_comment', 'like_reply', 'like_post', 'reply', 'comment')", userID).
 		Order("created_at DESC").
 		Find(&notifications).Error
 
@@ -60,6 +60,29 @@ func GetNotifications(w http.ResponseWriter, r *http.Request) {
 			"updated_at": notif.UpdatedAt,
 		}
 
+		// ✅ Fetch Post Title if `like_post` or `comment`
+		if (notif.Type == "like_post" || notif.Type == "comment") && notif.PostID != nil {
+			var post models.Post
+			if err := database.DB.First(&post, *notif.PostID).Error; err == nil {
+				enrichedNotif["post_title"] = post.Title // ✅ Add post title
+			} else {
+				fmt.Println("❌ Error fetching post title:", err)
+			}
+		}
+
+		// ✅ Fetch the actor (user who liked or commented)
+		if notif.ActorID != 0 {
+			var actor models.User
+			if err := database.DB.First(&actor, notif.ActorID).Error; err == nil {
+				enrichedNotif["author"] = map[string]interface{}{
+					"name":     actor.Username,
+					"imageUrl": actor.Avatar,
+				}
+			} else {
+				fmt.Println("❌ Error fetching actor details:", err)
+			}
+		}
+
 		// Проверяем comment_id и загружаем комментарий
 		if notif.CommentID != nil {
 			fmt.Println("Loading comment for notification ID:", notif.ID, "CommentID:", *notif.CommentID)
@@ -89,20 +112,18 @@ func GetNotifications(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Загружаем автора лайка поста
-		if notif.Type == "like_post" && notif.PostID != nil {
+		if notif.Type == "like_post" {
 			var liker models.User
-			if err := database.DB.First(&liker, notif.UserID).Error; err == nil {
+			if err := database.DB.First(&liker, notif.ActorID).Error; err == nil { // ✅ Now using ActorID
 				enrichedNotif["author"] = map[string]interface{}{
-					"name":     liker.Username,
-					"imageUrl": liker.Avatar,
+					"name":     liker.Username, // ✅ Now using the actual liker
+					"imageUrl": liker.Avatar,   // ✅ Now using the actual liker
 				}
 			} else {
-				fmt.Println("❌ Ошибка при поиске автора лайка:", err)
+				fmt.Println("❌ Error fetching liker details:", err)
 			}
 		}
 
-		// Загружаем автора комментария, если тип like_comment
 		if notif.Type == "like_comment" && notif.CommentID != nil {
 			fmt.Println("🔹 Loading comment for like_comment notification:", *notif.CommentID)
 
@@ -111,15 +132,23 @@ func GetNotifications(w http.ResponseWriter, r *http.Request) {
 			if err == nil {
 				fmt.Println("✅ Comment found:", comment.Content, "by", comment.Author.Username)
 
-				enrichedNotif["comment_content"] = comment.Content
-				enrichedNotif["author"] = map[string]interface{}{
-					"name":     comment.Author.Username,
-					"imageUrl": comment.Author.Avatar,
+				enrichedNotif["comment_content"] = comment.Content // ✅ Correctly add the comment content
+
+				// ✅ Fetch the actual user who LIKED the comment (not the original commenter)
+				var liker models.User
+				if err := database.DB.First(&liker, notif.ActorID).Error; err == nil {
+					enrichedNotif["author"] = map[string]interface{}{
+						"name":     liker.Username, // ✅ Correct! Now using the liker
+						"imageUrl": liker.Avatar,   // ✅ Correct! Now using the liker
+					}
+				} else {
+					fmt.Println("❌ Error fetching liker details:", err)
 				}
 			} else {
-				fmt.Println("❌ Ошибка при загрузке комментария для уведомления:", err)
+				fmt.Println("❌ Error loading comment for like_comment notification:", err)
 			}
 		}
+
 		if notif.Type == "like_reply" && notif.ReplyID != nil {
 			fmt.Println("🔹 Loading reply for like_reply notification:", *notif.ReplyID)
 
@@ -172,27 +201,28 @@ func formatMessage(notifType, authorName string) string {
 func CreateNotification(userID, likerID uint, notifType string, postID, commentID, replyID *uint) error {
 	fmt.Println("🔹 Attempting to create notification:", userID, likerID, notifType, postID, commentID, replyID)
 
-	// Get liker details (to store correct author in notifications)
 	var liker models.User
 	if err := database.DB.First(&liker, likerID).Error; err != nil {
-		fmt.Println("❌ Ошибка при поиске автора лайка:", err)
+		fmt.Println("❌ Error fetching liker details:", err)
 		return err
 	}
 
-	// Use the formatMessage function
 	message := formatMessage(notifType, liker.Username)
 
 	notification := models.Notification{
-		UserID:    userID, // User who receives the notification
+		UserID:    userID,  // The user receiving the notification
+		ActorID:   likerID, // ✅ Ensure this is the **liker**
 		Type:      notifType,
 		PostID:    postID,
 		CommentID: commentID,
 		ReplyID:   replyID,
-		Message:   message, // Use formatted message
+		Message:   message,
 		IsRead:    false,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
+
+	fmt.Println("🔹 Inserting notification into database:", notification)
 
 	err := database.DB.Create(&notification).Error
 	if err != nil {
@@ -239,13 +269,13 @@ func NotifyLikeComment(userID, commentID, likerID uint) {
 		return
 	}
 
-	fmt.Println("🔹 Creating like_comment notification for UserID:", userID, "CommentID:", commentID, "LikerID:", likerID)
+	fmt.Println("🔹 Creating `like_comment` notification for User:", userID, "CommentID:", commentID, "LikerID:", likerID)
 
 	err := CreateNotification(userID, likerID, "like_comment", nil, &commentID, nil)
 	if err != nil {
-		fmt.Println("❌ Error creating notification:", err)
+		fmt.Println("❌ Error creating `like_comment` notification:", err)
 	} else {
-		fmt.Println("✅ Notification created successfully for Comment ID:", commentID)
+		fmt.Println("✅ `like_comment` Notification created successfully for Comment ID:", commentID)
 	}
 }
 

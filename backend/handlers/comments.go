@@ -318,10 +318,11 @@ func LikeComment(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println("✅ Like saved successfully")
 
-	// Отправляем уведомление автору комментария (если это не сам пользователь)
 	if comment.AuthorID != uint(userID) {
-		fmt.Println("🔹 Sending notification for comment like...")
+		fmt.Println("🔹 Sending notification for comment like to user:", comment.AuthorID, "from user:", userID)
 		NotifyLikeComment(comment.AuthorID, uint(commentID), uint(userID))
+	} else {
+		fmt.Println("⚠️ User liked their own comment, skipping notification.")
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Comment liked successfully"})

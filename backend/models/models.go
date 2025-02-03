@@ -88,7 +88,8 @@ type Like struct {
 
 type Notification struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
-	UserID    uint      `json:"user_id"`
+	UserID    uint      `json:"user_id"`  // The recipient of the notification
+	ActorID   uint      `json:"actor_id"` // The user who performed the action (liker, commenter, etc.)
 	Type      string    `json:"type"`
 	PostID    *uint     `json:"post_id"`
 	CommentID *uint     `json:"comment_id" gorm:"default:null"`
