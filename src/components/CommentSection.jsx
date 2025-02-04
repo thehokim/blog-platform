@@ -212,7 +212,7 @@ const CommentSection = ({ postId, userId }) => {
   const handleDelete = async (commentId) => {
     try {
       await axios.delete(`${BASE_URL}/posts/${postId}/comments/${commentId}`, {
-        data: { user_id: userId },
+        data: { user_id: userId }, 
       });
       fetchComments();
     } catch (error) {
