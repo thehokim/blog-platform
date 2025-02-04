@@ -274,12 +274,23 @@ func NotifyLikePost(userID, postID, likerID uint) {
 
 func NotifyComment(userID, postID, commenterID, commentID uint) {
 	if userID == commenterID {
+		fmt.Println("⚠️ Self-comment detected, no notification sent.")
 		return
 	}
 
-	// Логирование
-	fmt.Println("NotifyComment called with:", userID, postID, commenterID, commentID)
+	fmt.Println("🔹 Sending comment notification to User:", userID, "PostID:", postID, "CommenterID:", commenterID, "CommentID:", commentID)
 
+	// Проверяем, существует ли уже уведомление
+	var existingNotification models.Notification
+	err := database.DB.Where("user_id = ? AND post_id = ? AND type = ?", userID, postID, "comment").
+		First(&existingNotification).Error
+
+	if err == nil {
+		fmt.Println("❌ Уведомление о комментарии уже существует:", existingNotification.ID)
+		return
+	}
+
+	// Создаём уведомление
 	CreateNotification(userID, commenterID, "comment", &postID, &commentID, nil)
 }
 
@@ -291,7 +302,18 @@ func NotifyLikeComment(userID, commentID, likerID uint) {
 
 	fmt.Println("🔹 Creating `like_comment` notification for User:", userID, "CommentID:", commentID, "LikerID:", likerID)
 
-	err := CreateNotification(userID, likerID, "like_comment", nil, &commentID, nil)
+	// Проверяем, существует ли уже уведомление
+	var existingNotification models.Notification
+	err := database.DB.Where("user_id = ? AND comment_id = ? AND type = ?", userID, commentID, "like_comment").
+		First(&existingNotification).Error
+
+	if err == nil {
+		fmt.Println("❌ Уведомление о лайке комментария уже существует:", existingNotification.ID)
+		return
+	}
+
+	// Создаём уведомление
+	err = CreateNotification(userID, likerID, "like_comment", nil, &commentID, nil)
 	if err != nil {
 		fmt.Println("❌ Error creating `like_comment` notification:", err)
 	} else {
@@ -301,22 +323,15 @@ func NotifyLikeComment(userID, commentID, likerID uint) {
 
 func NotifyReply(userID, commentID, replierID, replyID uint) {
 	if userID == replierID {
+		fmt.Println("⚠️ Self-reply detected, no notification sent.")
 		return
 	}
 
-	// Найти родительский комментарий, чтобы получить post_id
-	var parentComment models.Comment
-	err := database.DB.Where("id = ?", commentID).First(&parentComment).Error
-	if err != nil {
-		fmt.Println("❌ Ошибка при поиске родительского комментария:", err)
-		return
-	}
-
-	postID := parentComment.PostID // Получаем post_id
+	fmt.Println("🔹 Отправка уведомления о реплае:", userID, commentID, replierID, replyID)
 
 	// Проверяем, существует ли уже уведомление
 	var existingNotification models.Notification
-	err = database.DB.Where("user_id = ? AND comment_id = ? AND type = ?", userID, commentID, "reply").
+	err := database.DB.Where("user_id = ? AND comment_id = ? AND type = ?", userID, commentID, "reply").
 		First(&existingNotification).Error
 
 	if err == nil {
@@ -324,8 +339,7 @@ func NotifyReply(userID, commentID, replierID, replyID uint) {
 		return
 	}
 
-	fmt.Println("🔹 Отправка нового уведомления о реплае:", userID, commentID, replierID, replyID, "post_id:", postID)
-	CreateNotification(userID, replierID, "reply", &postID, &commentID, &replyID)
+	CreateNotification(userID, replierID, "reply", nil, &commentID, &replyID)
 }
 
 func NotifyLikeReply(userID, replyID, likerID uint) {
@@ -336,22 +350,17 @@ func NotifyLikeReply(userID, replyID, likerID uint) {
 
 	fmt.Println("🔹 Creating like_reply notification for UserID:", userID, "ReplyID:", replyID, "LikerID:", likerID)
 
-	// Get the actual user who liked the reply
-	var liker models.User
-	if err := database.DB.First(&liker, likerID).Error; err != nil {
-		fmt.Println("❌ Ошибка при поиске лайкера:", err)
+	// Проверяем, существует ли уже уведомление
+	var existingNotification models.Notification
+	err := database.DB.Where("user_id = ? AND reply_id = ? AND type = ?", userID, replyID, "like_reply").
+		First(&existingNotification).Error
+
+	if err == nil {
+		fmt.Println("❌ Уведомление о лайке реплая уже существует:", existingNotification.ID)
 		return
 	}
 
-	// Get reply details
-	var reply models.Reply
-	if err := database.DB.Preload("Author").First(&reply, replyID).Error; err == nil {
-		CreateNotification(userID, likerID, "like_reply", nil, nil, &replyID)
-
-		fmt.Println("✅ like_reply notification created successfully for Reply ID:", replyID)
-	} else {
-		fmt.Println("❌ Ошибка при загрузке реплая для уведомления:", err)
-	}
+	CreateNotification(userID, likerID, "like_reply", nil, nil, &replyID)
 }
 
 // ✅ API: Get unread notifications count
