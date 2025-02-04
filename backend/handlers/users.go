@@ -123,6 +123,7 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		updates["website"] = website
 	}
 
+	// Проверяем уникальность username
 	if newUsername := r.FormValue("username"); newUsername != "" {
 		var existingUser models.User
 		if err := database.DB.Where("username = ?", newUsername).First(&existingUser).Error; err == nil && existingUser.ID != user.ID {
@@ -132,29 +133,46 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		updates["username"] = newUsername
 	}
 
-	if file, handler, err := r.FormFile("avatar"); err == nil {
+	// Проверяем, был ли загружен аватар
+	file, handler, err := r.FormFile("avatar")
+	if err == nil {
 		defer file.Close()
 
-		// Replace spaces with underscores in filename
-		safeFilename := strings.ReplaceAll(handler.Filename, " ", "_")
-		avatarPath := fmt.Sprintf("./uploads/avatars/%d_%s", time.Now().UnixNano(), safeFilename)
+		// Проверяем, существует ли директория
+		avatarDir := "./uploads/avatars"
+		if _, err := os.Stat(avatarDir); os.IsNotExist(err) {
+			fmt.Println("🛠 Создание директории:", avatarDir)
+			if err := os.MkdirAll(avatarDir, os.ModePerm); err != nil {
+				fmt.Println("❌ Ошибка при создании директории:", err)
+				http.Error(w, "Failed to create avatar directory", http.StatusInternalServerError)
+				return
+			}
+		}
 
-		// Create file on disk
+		// Генерируем безопасное имя файла
+		safeFilename := strings.ReplaceAll(handler.Filename, " ", "_")
+		avatarPath := fmt.Sprintf("%s/%d_%s", avatarDir, time.Now().UnixNano(), safeFilename)
+
+		// Создаем файл на диске
 		out, err := os.Create(avatarPath)
 		if err != nil {
+			fmt.Println("❌ Ошибка при создании файла:", err)
 			http.Error(w, "Failed to save avatar", http.StatusInternalServerError)
 			return
 		}
 		defer out.Close()
 
-		// Write file content
+		// Записываем файл
 		if _, err := io.Copy(out, file); err != nil {
+			fmt.Println("❌ Ошибка при записи файла:", err)
 			http.Error(w, "Failed to save avatar", http.StatusInternalServerError)
 			return
 		}
 
-		// Save relative path for the client
-		updates["avatar"] = avatarPath[1:] // Remove leading dot for URL
+		fmt.Println("✅ Аватар сохранен:", avatarPath)
+		updates["avatar"] = avatarPath[1:] // Убираем точку из пути
+	} else {
+		fmt.Println("⚠️ Файл не загружен:", err)
 	}
 
 	// Применяем обновления
