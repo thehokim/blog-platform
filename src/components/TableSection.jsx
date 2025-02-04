@@ -33,14 +33,14 @@ const TableSection = ({
   }, [tableData, t]); // Локализация заголовков
 
   return (
-    <div className="mb-6 mt-6 bg-white dark:bg-gray-800 p-6 border border-[#f1f1f3] dark:border-gray-600 rounded-lg overflow-auto">
-      <table className="w-full border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden">
-        <thead className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+    <div className="mb-6 mt-6 bg-white p-6 border border-[#f1f1f3] rounded-lg overflow-auto">
+      <table className="w-full border border-gray-300 rounded-lg overflow-hidden">
+        <thead className="bg-gray-100 text-gray-800">
           <tr>
             {safeTableData.columns.map((col, colIndex) => (
               <th
                 key={colIndex}
-                className="border border-gray-300 dark:border-gray-600 px-4 py-2 text-center font-semibold"
+                className="border border-gray-300 px-4 py-2 text-center font-semibold"
               >
                 <div className="flex items-center justify-between">
                   <input
@@ -48,7 +48,7 @@ const TableSection = ({
                     value={col}
                     onChange={(e) => onHeaderChange(e, colIndex)}
                     placeholder={t("Column Title")}
-                    className="w-full bg-transparent border-none text-sm text-center font-bold focus:outline-none dark:text-white placeholder-gray-500"
+                    className="w-full bg-transparent border-none text-sm text-center font-bold focus:outline-none placeholder-gray-500"
                   />
                   <button
                     onClick={() => onRemoveColumn(colIndex)}
@@ -74,14 +74,14 @@ const TableSection = ({
         <tbody>
           {safeTableData.rows.length > 0 ? (
             safeTableData.rows.map((row, rowIndex) => (
-              <tr key={rowIndex} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+              <tr key={rowIndex} className="hover:bg-gray-50 transition">
                 {safeTableData.columns.map((col, cellIndex) => (
-                  <td key={cellIndex} className="border border-gray-300 dark:border-gray-600 px-4 py-2 text-center">
+                  <td key={cellIndex} className="border border-gray-300 px-4 py-2 text-center">
                     <input
                       type="text"
                       value={row[col] || ""}
                       onChange={(e) => onChange(e, rowIndex, col)}
-                      className="w-full bg-transparent border-none text-sm text-center focus:outline-none dark:text-white placeholder-gray-500"
+                      className="w-full bg-transparent border-none text-sm text-center focus:outline-none placeholder-gray-500"
                       placeholder={t("Enter value")}
                     />
                   </td>

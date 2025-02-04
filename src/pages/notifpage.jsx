@@ -90,9 +90,9 @@ const NotificationsPage = () => {
     : notifications.slice(0, 6);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900">
       <Navbar />
-      <div className="bg-white dark:bg-gray-800 pb-24">
+      <div className="bg-white pb-24">
         {/* Герой с фоновым изображением */}
         <div className="relative w-full">
           <img
@@ -112,7 +112,7 @@ const NotificationsPage = () => {
           {loading ? (
             <div className="min-h-screen flex justify-center items-center">
               <svg
-                className="animate-spin h-10 w-10 text-gray-700 dark:text-gray-300"
+                className="animate-spin h-10 w-10 text-gray-700"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -155,15 +155,15 @@ const NotificationsPage = () => {
                   return (
                     <div
                       key={notification.id}
-                      className="p-6 bg-[#f7f7fc] dark:bg-gray-700 rounded-lg border border-[#f1f1f3] dark:border-gray-600 transition transform "
+                      className="p-6 bg-[#f7f7fc] rounded-lg border border-[#f1f1f3] transition transform"
                     >
                       <div className="flex items-center">
-                        {/* Левая часть: все элементы уведомления */}
+                        {/* Левая часть: уведомление */}
                         <div className="flex items-center space-x-3">
                           <img
                             src={avatarUrl}
                             alt={author?.name || t("Пользователь")}
-                            className="w-10 h-10 rounded-full object-cover border border-gray-300 dark:border-gray-600"
+                            className="w-10 h-10 rounded-full object-cover border border-gray-300"
                             onError={(e) => {
                               e.target.onerror = null;
                               e.target.src =

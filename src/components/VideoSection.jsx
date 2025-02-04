@@ -68,12 +68,12 @@ const VideoSection = ({ videoUrl, onChange }) => {
   };
 
   return (
-    <div className="dark:bg-gray-800 bg-white p-4 rounded-lg mb-4 border border-gray-200 dark:border-gray-600">
+    <div className="bg-white p-4 rounded-lg mb-4 border border-gray-200">
       <div className="mb-4">
         <input
           type="text"
           placeholder={t("Enter VideoLink")}
-          className="border-none py-2 px-4 w-full rounded dark:bg-gray-700 bg-gray-50 dark:text-gray-200 text-gray-700 dark:hover:bg-gray-800 focus:outline-none"
+          className="border-none py-2 px-4 w-full rounded bg-gray-50 text-gray-700 focus:outline-none"
           value={inputUrl}
           onChange={handleInputChange}
         />
@@ -92,8 +92,8 @@ const VideoSection = ({ videoUrl, onChange }) => {
           ></iframe>
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center h-48 border border-px border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700">
-          <p className="text-gray-500 px-4 dark:text-gray-400 text-center">
+        <div className="flex flex-col items-center justify-center h-48 border border-px border-dashed border-gray-300 rounded-lg bg-gray-50">
+          <p className="text-gray-500 px-4 text-center">
             {t("InvalidURLMessage")}
           </p>
         </div>

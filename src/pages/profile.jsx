@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+// Функция для обрезки изображения, возвращает Blob
 function getCroppedImg(imageSrc, croppedAreaPixels) {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -91,6 +92,7 @@ function Profile() {
           bio: data.bio || "",
           website: data.website || "",
         });
+        // Устанавливаем текущий аватар
         setCroppedPhoto(`${BASE_URL}${data.avatar}`);
       } else {
         console.error("Ошибка загрузки профиля:", await response.text());
@@ -140,6 +142,10 @@ function Profile() {
         setCroppedPhoto(`${BASE_URL}${data.avatar}`);
         setIsCropping(false);
         setProfilePhoto(null); // Сбрасываем временное изображение
+        toast.success(t("Аватар успешно обновлён."), {
+          position: "top-right",
+          autoClose: 3000,
+        });
       } else {
         console.error("Ошибка загрузки аватара:", await response.text());
       }
@@ -158,6 +164,8 @@ function Profile() {
     formData.append("bio", profileData.bio);
     formData.append("website", profileData.website);
 
+    // Если croppedPhoto уже является Blob (например, после кропа), можно добавить его,
+    // иначе сервер будет использовать ранее сохранённое изображение
     if (croppedPhoto instanceof Blob) {
       formData.append("avatar", croppedPhoto, "avatar.jpg");
     }
@@ -177,11 +185,6 @@ function Profile() {
         toast.success(t("Данные профиля успешно сохранены."), {
           position: "top-right",
           autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
         });
         fetchProfileData(userId);
       } else {
@@ -199,21 +202,18 @@ function Profile() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col dark:bg-gradient-to-br from-gray-200 via-gray-500 to-gray-700 text-white bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900">
       <Navbar />
       <div className="flex-grow flex items-center justify-center px-4 py-10">
         <form
           onSubmit={handleProfileSubmit}
-          className="max-w-4xl w-full p-8 dark:bg-gray-900 bg-gray-200 bg-opacity-75 dark:text-white text-gray-900 rounded-xl"
+          className="max-w-4xl w-full p-8 bg-gray-200 bg-opacity-75 text-gray-900 rounded-xl"
         >
           <div className="mb-8 flex flex-col items-center">
-            <label
-              htmlFor="profile-photo"
-              className="block text-sm font-medium mb-2"
-            >
+            <label htmlFor="profile-photo" className="block text-sm font-medium mb-2">
               {t("Фото профиля")}
             </label>
-            <div className="relative w-36 h-36 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 -mb-10">
+            <div className="relative w-36 h-36 rounded-full overflow-hidden bg-gray-200 -mb-10">
               {isCropping ? (
                 <Cropper
                   image={profilePhoto}

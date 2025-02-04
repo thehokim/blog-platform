@@ -59,7 +59,7 @@ const YandexMap = ({ center = [41.2995, 69.2401], zoom = 13 }) => {
   };
 
   return (
-    <div className="bg-gray-100 dark:bg-gray-300 rounded-lg shadow-md p-4">
+    <div className="bg-gray-100 rounded-lg shadow-md p-4">
       <YMaps>
         <Map
           state={{

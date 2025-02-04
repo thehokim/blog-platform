@@ -14,16 +14,13 @@ const ContentPage = () => {
   const [error, setError] = useState(null); // Состояние ошибки
 
   useEffect(() => {
-    console.log("Post ID from URL:", id); // Проверяем, что приходит в id
-    console.log("Fetching:", `${BASE_URL}/posts/${id}`);
+    if (!id) {
+      console.error("Ошибка: ID поста не найден!");
+      return;
+    }
 
+    setLoading(true);
     const fetchPost = async () => {
-      if (!id) {
-        console.error("Ошибка: ID поста не найден!");
-        return;
-      }
-
-      setLoading(true);
       try {
         const response = await fetch(`${BASE_URL}/posts/${id}`);
         if (!response.ok) {
@@ -41,14 +38,6 @@ const ContentPage = () => {
 
     fetchPost();
   }, [id, t]);
-
-  // if (loading) {
-  //   return (
-  //     <div className="min-h-screen flex justify-center items-center">
-  //       <p className="text-lg text-gray-700">{t('Загрузка...')}</p>
-  //     </div>
-  //   );
-  // }
 
   if (error) {
     return (
@@ -84,12 +73,11 @@ const ContentPage = () => {
       </div>
     );
   }
-  
 
   return (
     <div>
       <Navbar />
-      <div className="bg-gray-50 dark:bg-gradient-to-br from-gray-200 via-gray-500 to-gray-700 min-h-screen flex justify-center">
+      <div className="bg-gray-50 min-h-screen flex justify-center px-4 sm:px-6 lg:px-8">
         <MediumStyleTravelPage data={post} />
       </div>
       <Footer />
