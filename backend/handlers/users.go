@@ -89,8 +89,10 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 
 func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	userID := mux.Vars(r)["id"]
+	fmt.Println("🔹 Получен запрос на обновление профиля. UserID:", userID)
 
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		fmt.Println("❌ Ошибка при парсинге формы:", err)
 		http.Error(w, "Invalid form data", http.StatusBadRequest)
 		return
 	}
@@ -98,18 +100,21 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 	id, err := strconv.Atoi(userID)
 	if err != nil || id <= 0 {
+		fmt.Println("❌ Неверный ID пользователя:", userID)
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
 
+	// Проверяем, существует ли пользователь
 	if err := database.DB.First(&user, id).Error; err != nil {
+		fmt.Println("❌ Пользователь не найден:", err)
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
 
 	updates := make(map[string]interface{})
 
-	// Обновление имени и био
+	// Обновление имени, био, сайта
 	if firstName := r.FormValue("first_name"); firstName != "" {
 		updates["first_name"] = firstName
 	}
@@ -127,21 +132,23 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if newUsername := r.FormValue("username"); newUsername != "" {
 		var existingUser models.User
 		if err := database.DB.Where("username = ?", newUsername).First(&existingUser).Error; err == nil && existingUser.ID != user.ID {
+			fmt.Println("❌ Имя пользователя уже занято:", newUsername)
 			http.Error(w, "Username is already taken", http.StatusConflict)
 			return
 		}
 		updates["username"] = newUsername
 	}
 
-	// Проверяем, был ли загружен аватар
+	// Обрабатываем загрузку аватара
 	file, handler, err := r.FormFile("avatar")
 	if err == nil {
 		defer file.Close()
+		fmt.Println("📸 Загружаем аватар:", handler.Filename)
 
-		// Проверяем, существует ли директория
+		// Проверяем, существует ли директория uploads/avatars
 		avatarDir := "./uploads/avatars"
 		if _, err := os.Stat(avatarDir); os.IsNotExist(err) {
-			fmt.Println("🛠 Создание директории:", avatarDir)
+			fmt.Println("🛠 Директория не найдена, создаем:", avatarDir)
 			if err := os.MkdirAll(avatarDir, os.ModePerm); err != nil {
 				fmt.Println("❌ Ошибка при создании директории:", err)
 				http.Error(w, "Failed to create avatar directory", http.StatusInternalServerError)
@@ -170,17 +177,19 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		}
 
 		fmt.Println("✅ Аватар сохранен:", avatarPath)
-		updates["avatar"] = avatarPath[1:] // Убираем точку из пути
+		updates["avatar"] = avatarPath[1:] // Убираем точку из пути для URL
 	} else {
 		fmt.Println("⚠️ Файл не загружен:", err)
 	}
 
-	// Применяем обновления
+	// Применяем обновления в базе
 	if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
+		fmt.Println("❌ Ошибка при обновлении пользователя:", err)
 		http.Error(w, "Failed to update user", http.StatusInternalServerError)
 		return
 	}
 
+	// Возвращаем обновленный профиль
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
