@@ -92,7 +92,7 @@ const NotificationsPage = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900">
       <Navbar />
-      <div className="bg-white pb-24">
+      <div className="bg-white pb-24 min-h-[calc(100vh-309px)]">
         {/* Герой с фоновым изображением */}
         <div className="relative w-full">
           <img

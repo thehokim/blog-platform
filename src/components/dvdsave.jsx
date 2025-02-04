@@ -46,7 +46,7 @@ const DvdScreenSave = () => {
   }, []);
 
   return (
-    <div className="relative h-96 mt-20 w-screen bg-white overflow-hidden">
+    <div className="relative min-h-[50vh] mt-20 w-screen bg-white overflow-hidden">
       {/* Плавающие логотипы */}
       {elements.map((el, index) => (
         <svg
@@ -87,8 +87,8 @@ const DvdScreenSave = () => {
 
       {/* Центрированный блок с текстом и кнопкой */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-black z-0 px-4 text-center">
-        <p className="text-lg">{t("Вы еще не сохраняли блогов?")}</p>
-        <p className="text-lg mb-6">
+        <p className="text-lg 2k:text-2xl 4k:text-3xl">{t("Вы еще не сохраняли блогов?")}</p>
+        <p className="text-lg mb-6 2k:text-2xl 4k:text-3xl">
           {t("Не проблема, следуйте за интересном контентом вместе с нами.")}
         </p>
         <Link

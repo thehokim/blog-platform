@@ -135,7 +135,8 @@ const Saved = () => {
 
   // Если постов нет — показываем компонент DvdScreenSave
   const content = posts.length > 0 ? (
-    posts.map((post) => <BlogCard key={post.id} post={post} />)
+    posts.map((post) => 
+    <BlogCard key={post.id} post={post}/>)
   ) : (
     <div className="flex w-screen -ml-24 -mt-28 justify-center">
       <DvdScreenSave />
@@ -145,8 +146,8 @@ const Saved = () => {
   return (
     <div className="bg-white">
       <Navbar />
-      <div className="bg-white pb-24">
-        <div className="relative w-screen">
+      <div className="bg-white min-h-[calc(100vh-309px)] pb-24">
+        <div className="relative max-w-screen">
           <img
             src={savedb}
             alt="Background"

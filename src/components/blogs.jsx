@@ -47,7 +47,7 @@ const Blogs = () => {
     return Array.from({ length: 6 }).map((_, index) => (
       <div
         key={index}
-        className="relative max-w-2xl flex-col items-start justify-between bg-gray-50 rounded-lg h-full p-6"
+        className="relative max-w-4xl flex-col items-start justify-between bg-gray-50 rounded-lg h-full p-6"
       >
         <div className="flex items-center gap-x-4 text-xs">
           <Skeleton width={80} height={16} />
@@ -77,7 +77,7 @@ const Blogs = () => {
   const safePosts = Array.isArray(posts) ? posts : [];
 
   return (
-    <div className="bg-white pb-24">
+    <div className="bg-white min-h-[calc(100vh-309px)] pb-24">
       <div className="relative">
         <img
           src={backgroundImage}
@@ -97,7 +97,7 @@ const Blogs = () => {
       {/* Передаём setPosts в SearchDropdown */}
       <SearchDropdown setPosts={setPosts} allPosts={allPosts} />
 
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+      <div className="mx-auto max-w-screen-2xl lg:px-8">
         {loading && (
           <div className="mx-auto mt-10 grid max-w-2xl grid-cols-1 gap-x-16 gap-y-16 pt-10 sm:mt-16 sm:pt-16 lg:mx-0 lg:max-w-none lg:grid-cols-2">
             {renderSkeletons()}
@@ -115,7 +115,7 @@ const Blogs = () => {
             <p>{t("Блоги не найдены")}</p>
           </div>
         )}
-        <div className="mx-auto mt-10 grid max-w-2xl grid-cols-1 gap-x-16 gap-y-16 pt-10 sm:mt-16 sm:pt-16 lg:mx-0 lg:max-w-none lg:grid-cols-2">
+        <div className="mx-auto mt-10 grid max-w-4xl grid-cols-1 gap-x-16 gap-y-16 pt-10 sm:mt-16 sm:pt-16 lg:mx-0 lg:max-w-none lg:grid-cols-2 lg:gap-x-48 xl:gap-x-64">
           {safePosts.map((post) => (
             <BlogCard key={post.id} post={post} authToken={authToken} />
           ))}

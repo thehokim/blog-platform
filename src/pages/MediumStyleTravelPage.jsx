@@ -43,15 +43,15 @@ const MediumStyleTravelPage = ({ data }) => {
   const markerPositions =
     Array.isArray(data.maps) && data.maps.length > 0
       ? data.maps
-          .filter(
-            (point) =>
-              typeof point.latitude === "number" &&
-              typeof point.longitude === "number"
-          )
-          .map(({ latitude, longitude }) => ({
-            lat: latitude,
-            lng: longitude,
-          }))
+        .filter(
+          (point) =>
+            typeof point.latitude === "number" &&
+            typeof point.longitude === "number"
+        )
+        .map(({ latitude, longitude }) => ({
+          lat: latitude,
+          lng: longitude,
+        }))
       : [];
 
   const formattedDate = data.date
@@ -287,41 +287,45 @@ const MediumStyleTravelPage = ({ data }) => {
         )}
 
       {/* Видео */}
-      {Array.isArray(data.videos) && data.videos.length > 0 && (
-        <section className="mb-8">
-          <h2 className="flex text-2xl tracking-wide font-semibold text-gray-900 mt-8 mb-4">
-            <Video className="mr-2 mt-1" />
-            {t("Видео")}
-          </h2>
-          <div className="flex flex-col gap-4">
-            {data.videos.map((video, index) => {
-              let embedUrl = video.url;
+      {Array.isArray(data.videos) &&
+        data.videos.filter(video => video.url && video.url.trim() !== "").length > 0 && (
+          <section className="mb-8">
+            <h2 className="flex text-2xl tracking-wide font-semibold text-gray-900 mt-8 mb-4">
+              <Video className="mr-2 mt-1" />
+              {t("Видео")}
+            </h2>
+            <div className="flex flex-col gap-4">
+              {data.videos
+                .filter(video => video.url && video.url.trim() !== "")
+                .map((video, index) => {
+                  let embedUrl = video.url;
 
-              // Преобразование YouTube-ссылок в embed-формат
-              if (video.url.includes("youtube.com/watch")) {
-                embedUrl = video.url.replace("watch?v=", "embed/");
-              } else if (video.url.includes("youtu.be/")) {
-                embedUrl = video.url.replace("youtu.be/", "www.youtube.com/embed/");
-              }
+                  // Convert YouTube URLs to the embed format
+                  if (video.url.includes("youtube.com/watch")) {
+                    embedUrl = video.url.replace("watch?v=", "embed/");
+                  } else if (video.url.includes("youtu.be/")) {
+                    embedUrl = video.url.replace("youtu.be/", "www.youtube.com/embed/");
+                  }
 
-              return (
-                <iframe
-                  key={index}
-                  src={embedUrl}
-                  className="w-full h-[500px] rounded-lg"
-                  title={video.caption || `Video ${index + 1}`}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  onError={(e) => {
-                    console.error("Ошибка загрузки видео:", embedUrl);
-                    e.target.style.display = "none";
-                  }}
-                />
-              );
-            })}
-          </div>
-        </section>
-      )}
+                  return (
+                    <iframe
+                      key={index}
+                      src={embedUrl}
+                      className="w-full h-[500px] rounded-lg"
+                      title={video.caption || `Video ${index + 1}`}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      onError={(e) => {
+                        console.error("Ошибка загрузки видео:", embedUrl);
+                        e.target.style.display = "none";
+                      }}
+                    />
+                  );
+                })}
+            </div>
+          </section>
+        )}
+
 
       {/* Комментарии */}
       <section className="relative mt-8">

@@ -87,8 +87,8 @@ const DvdScreenSaver = () => {
 
       {/* Текст и кнопка */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-black z-0 px-4 text-center">
-        <p className="text-lg">{t("У вас еще нет блогов?")}</p>
-        <p className="text-lg mb-6">
+        <p className="text-lg 2k:text-2xl 4k:text-3xl">{t("У вас еще нет блогов?")}</p>
+        <p className="text-lg mb-6 2k:text-2xl 4k:text-3xl">
           {t("Не проблема, создайте свой первый блог с нами.")}
         </p>
         <Link
