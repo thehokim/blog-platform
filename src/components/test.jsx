@@ -158,7 +158,7 @@ const Share = () => {
             target="_blank"
             rel="noopener noreferrer"
             key={index}
-            className="flex items-center p-2 text-gray-700 hover:text-black dark:hover:text-white"
+            className="flex items-center p-2 text-gray-700 hover:text-black"
             style={{
               transition: `opacity 300ms ease ${
                 index * 100
@@ -173,7 +173,7 @@ const Share = () => {
         {/* Copy Link */}
         <button
           onClick={copyUrlToClipboard}
-          className="p-2 text-gray-700 hover:text-black dark:hover:text-white"
+          className="p-2 text-gray-700 hover:text-black"
           style={{
             transition: `opacity 300ms ease ${
               links.length * 100

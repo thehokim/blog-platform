@@ -53,7 +53,7 @@ const MapPoints = ({ mapPoints, setMapPoints }) => {
   };
   // console.log(mapPoints)
   return (
-    <div className="mb-4 bg-white border border-gray-200 dark:border-gray-600 dark:bg-gray-800 rounded-lg p-4">
+    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-4">
       {/* Проверка API-ключа */}
       <LoadScript
         googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY || ""}
@@ -87,7 +87,7 @@ const MapPoints = ({ mapPoints, setMapPoints }) => {
           {t("Очистить все метки")}
         </button>
       ) : (
-        <p className="mt-4 text-center text-gray-500 dark:text-gray-400">
+        <p className="mt-4 text-center text-gray-500">
           {t("Нажмите на карту, чтобы добавить метку.")}
         </p>
       )}

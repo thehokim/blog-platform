@@ -179,7 +179,7 @@ const Share = ({ postId }) => {
 
       {/* Speed Dial Options */}
       <div
-        className={`absolute flex top-0 left-full ml-2 -mt-1 items-center -space-x-3 transition-all duration-500 bg-blue-50 hover:bg-blue-100 dark:bg-gray-400 dark:hover:bg-gray-500 rounded-full ${
+        className={`absolute flex top-0 left-full ml-2 -mt-1 items-center -space-x-3 transition-all duration-500 bg-blue-50 hover:bg-blue-100 rounded-full ${
           isOpen ? "opacity-100 visible" : "opacity-0 invisible"
         }`}
       >
@@ -189,7 +189,7 @@ const Share = ({ postId }) => {
             target="_blank"
             rel="noopener noreferrer"
             key={index}
-            className="flex items-center p-2 text-gray-700 hover:text-black dark:hover:text-white"
+            className="flex items-center p-2 text-gray-700 hover:text-black"
             style={{
               transition: isOpen
                 ? `opacity 200ms ease ${index * 100}ms, transform 200ms ease ${
@@ -208,7 +208,7 @@ const Share = ({ postId }) => {
         {/* Copy Link */}
         <button
           onClick={copyUrlToClipboard}
-          className="p-2 text-gray-700 hover:text-black dark:hover:text-white"
+          className="p-2 text-gray-700 hover:text-black"
           style={{
             transition: `opacity 300ms ease ${
               links.length * 100

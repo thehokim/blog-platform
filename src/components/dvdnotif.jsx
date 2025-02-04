@@ -9,18 +9,16 @@ const DvdScreenNotif = () => {
   useEffect(() => {
     const bounds = {
       top: 0, // Верхняя граница
-      bottom: window.innerHeight - 400, // Нижняя граница на 80px выше нижнего края
+      bottom: window.innerHeight - 400, // Нижняя граница (например, отступ 400px от низа)
     };
 
     const numberOfElements = 1;
-    const initialElements = Array.from({ length: numberOfElements }).map(
-      () => ({
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * (bounds.bottom - bounds.top) + bounds.top,
-        dx: Math.random() < 0.5 ? 2 : -2,
-        dy: Math.random() < 0.5 ? 2 : -2,
-      })
-    );
+    const initialElements = Array.from({ length: numberOfElements }).map(() => ({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * (bounds.bottom - bounds.top) + bounds.top,
+      dx: Math.random() < 0.5 ? 2 : -2,
+      dy: Math.random() < 0.5 ? 2 : -2,
+    }));
 
     setElements(initialElements);
 
@@ -30,14 +28,14 @@ const DvdScreenNotif = () => {
           let newX = el.x + el.dx;
           let newY = el.y + el.dy;
 
-          // Проверка на столкновение с границами
+          // Проверка столкновений с горизонтальными границами
           if (newX <= 0 || newX + 130 >= window.innerWidth) {
-            el.dx = -el.dx; // Меняем направление по X
+            el.dx = -el.dx;
           }
+          // Проверка столкновений с вертикальными границами
           if (newY <= bounds.top || newY + 90 >= bounds.bottom) {
-            el.dy = -el.dy; // Меняем направление по Y
+            el.dy = -el.dy;
           }
-
           return { ...el, x: newX, y: newY };
         })
       );
@@ -47,12 +45,12 @@ const DvdScreenNotif = () => {
   }, []);
 
   return (
-    <div className="relative h-96 mt-20 w-screen bg-white dark:bg-gray-200 overflow-hidden">
+    <div className="relative h-96 mt-20 w-screen bg-white overflow-hidden">
       {/* Плавающие логотипы */}
       {elements.map((el, index) => (
         <svg
           key={index}
-          className="absolute w-60 h-60"
+          className="absolute w-60 h-60 sm:w-48 sm:h-48 md:w-60 md:h-60 lg:w-72 lg:h-72"
           width="90"
           height="60"
           viewBox="0 0 135 90"
@@ -86,8 +84,8 @@ const DvdScreenNotif = () => {
         </svg>
       ))}
 
-      {/* Текст и кнопка */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-black z-0">
+      {/* Центрированный блок с текстом и кнопкой */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-black z-0 px-4 text-center">
         <p className="text-lg">
           {t("Уведомлений пока нет, мы сообщим когда появится важная новость.")}
         </p>
@@ -96,7 +94,7 @@ const DvdScreenNotif = () => {
         </p>
         <Link
           to="/"
-          className="px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all duration-200 ease-in-out transform hover:-translate-y-0.5"
+          className="px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all duration-200 ease-in-out transform hover:-translate-y-1"
         >
           {t("Блоги")}
         </Link>

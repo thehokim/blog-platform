@@ -242,10 +242,10 @@ const CommentSection = ({ postId, userId }) => {
       </div>
 
       {showComments && (
-        <div className="max-w-full mx-auto p-6 bg-white border border-px border-[#f1f1f3] rounded-lg dark:bg-gray-800 mt-6">
+        <div className="max-w-full mx-auto p-6 bg-white border border-px border-[#f1f1f3] rounded-lg mt-6">
           <form onSubmit={handleCommentSubmit} className="mb-6 flex">
             <textarea
-              className="w-full focus:outline-none px-3 py-2 h-12 min-h-12 border border-px border-[#f1f1f3] rounded-l-lg dark:bg-gray-700 dark:text-white"
+              className="w-full focus:outline-none px-3 py-2 h-12 min-h-12 border border-px border-[#f1f1f3] rounded-l-lg"
               rows="3"
               placeholder={t("Напишите комментарий...")}
               value={newComment}
@@ -291,7 +291,7 @@ const CommentSection = ({ postId, userId }) => {
                   return (
                     <div
                       key={comment.id}
-                      className="p-4 bg-[#f5f5fa] rounded-lg dark:bg-gray-900"
+                      className="p-4 bg-[#f5f5fa] rounded-lg"
                     >
                       <div className="flex items-start">
                         {/* Аватар автора */}
@@ -306,13 +306,13 @@ const CommentSection = ({ postId, userId }) => {
                             e.target.src =
                               "https://cdn-icons-png.flaticon.com/512/847/847969.png"; // Фолбэк
                           }}
-                          className="w-10 h-10 rounded-full mr-3 border border-gray-300 dark:border-gray-600"
+                          className="w-10 h-10 rounded-full mr-3 border border-gray-300"
                         />
 
                         <div className="flex-1">
                           {/* Имя автора */}
                           <div className="flex justify-between items-center">
-                            <span className="font-semibold text-gray-900 dark:text-white">
+                            <span className="font-semibold text-gray-900">
                               {authorName}
                             </span>
                             {/* Кнопки редактирования и удаления */}
@@ -361,7 +361,7 @@ const CommentSection = ({ postId, userId }) => {
                           {editingComment === comment.id ? (
                             <div className="mt-2 flex">
                               <textarea
-                                className="focus:outline-none w-full min-h-12 h-12 py-2 px-3 border border-px border-[#f1f1f3] rounded-l-lg dark:bg-gray-700 dark:text-white"
+                                className="focus:outline-none w-full min-h-12 h-12 py-2 px-3 border border-px border-[#f1f1f3] rounded-l-lg"
                                 rows="2"
                                 value={editedContent}
                                 onChange={(e) =>
@@ -376,7 +376,7 @@ const CommentSection = ({ postId, userId }) => {
                               </button>
                             </div>
                           ) : (
-                            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap mt-1">
+                            <p className="text-gray-700 whitespace-pre-wrap mt-1">
                               {comment.content}
                             </p>
                           )}
@@ -402,7 +402,7 @@ const CommentSection = ({ postId, userId }) => {
                           {replyingTo === comment.id && (
                             <div className="mt-2 flex">
                               <textarea
-                                className="focus:outline-none w-full py-2 px-3 min-h-12 h-12 border border-px border-[#f1f1f3] rounded-l-lg dark:bg-gray-700 dark:text-white"
+                                className="focus:outline-none w-full py-2 px-3 min-h-12 h-12 border border-px border-[#f1f1f3] rounded-l-lg"
                                 rows="2"
                                 placeholder="Ваш ответ..."
                                 value={replyContent}
@@ -455,7 +455,7 @@ const CommentSection = ({ postId, userId }) => {
                                     <img
                                       src={replyAvatar}
                                       alt="Аватар"
-                                      className="w-8 h-8 rounded-full mr-2 border border-gray-300 dark:border-gray-600"
+                                      className="w-8 h-8 rounded-full mr-2 border border-gray-300"
                                       onError={(e) => {
                                         console.error(
                                           "❌ Ошибка загрузки аватара:",
@@ -467,10 +467,10 @@ const CommentSection = ({ postId, userId }) => {
                                     />
 
                                     <div className="flex-1">
-                                      <span className="font-semibold text-gray-900 dark:text-white">
+                                      <span className="font-semibold text-gray-900">
                                         {replyName}
                                       </span>
-                                      <p className="text-gray-700 dark:text-gray-300 mt-1">
+                                      <p className="text-gray-700 mt-1">
                                         {reply.content}
                                       </p>
 
@@ -519,7 +519,7 @@ const CommentSection = ({ postId, userId }) => {
                                       {editingReply === reply.id && (
                                         <div className="mt-2 flex">
                                           <textarea
-                                            className="focus:outline-none w-full py-2 px-3 h-12 min-h-12 border border-px border-[#f1f1f3] rounded-l-lg dark:bg-gray-700 dark:text-white"
+                                            className="focus:outline-none w-full py-2 px-3 h-12 min-h-12 border border-px border-[#f1f1f3] rounded-l-lg"
                                             rows="2"
                                             value={editedReplyContent}
                                             onChange={(e) =>
@@ -565,7 +565,7 @@ const CommentSection = ({ postId, userId }) => {
                   );
                 })
             ) : (
-              <p className="text-gray-500 dark:text-gray-400 text-center">
+              <p className="text-gray-500 text-center">
                 Пока нет комментариев.
               </p>
             )}

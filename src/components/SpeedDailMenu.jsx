@@ -13,21 +13,14 @@ const SpeedDialMenu = () => {
 
   return (
     <div className="relative">
-      {/* Dropdown Menu */}
+      {/* Выпадающее меню */}
       {isOpen && (
-        <div
-          className="absolute -right-16 top-14
-          w-44 bg-white
-          rounded-xl shadow-2xl
-          border border-gray-100
-          overflow-hidden
-          animate-fade-in-down z-10 p-2"
-        >
-          <ul className="text-sm text-gray-700 dark:text-gray-300">
+        <div className="absolute -right-16 top-14 w-44 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in-down z-10 p-2">
+          <ul className="text-sm text-gray-700">
             <li className="w-full">
               <Link
                 to="/profile"
-                className="flex items-center px-4 py-2 w-full hover:bg-gray-100 hover:rounded-lg dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
+                className="flex items-center px-4 py-2 w-full hover:bg-gray-100 hover:rounded-lg hover:text-gray-900"
               >
                 <FaUser className="mr-2 text-blue-600" />
                 {t("Профиль")}
@@ -36,7 +29,7 @@ const SpeedDialMenu = () => {
             <li className="w-full">
               <Link
                 to="/saved"
-                className="flex items-center px-4 py-2 w-full hover:bg-gray-100 hover:rounded-lg dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
+                className="flex items-center px-4 py-2 w-full hover:bg-gray-100 hover:rounded-lg hover:text-gray-900"
               >
                 <FaBookmark className="mr-2 text-blue-600" />
                 {t("Сохраненные")}
@@ -45,7 +38,7 @@ const SpeedDialMenu = () => {
             <li className="w-full">
               <Link
                 to="/myblogs"
-                className="flex items-center px-4 py-2 w-full hover:bg-gray-100 hover:rounded-lg dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
+                className="flex items-center px-4 py-2 w-full hover:bg-gray-100 hover:rounded-lg hover:text-gray-900"
               >
                 <FaPen className="mr-2 text-blue-600" />
                 {t("Мои блоги")}
@@ -55,10 +48,10 @@ const SpeedDialMenu = () => {
         </div>
       )}
 
-      {/* Speed Dial Button */}
+      {/* Кнопка Speed Dial */}
       <button
         onClick={toggleMenu}
-        className="flex items-center justify-center w-10 h-10 text-white bg-blue-700 rounded-full hover:bg-blue-800 dark:bg-blue-700 dark:hover:bg-blue-700 transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 hover:shadow-lg z-10"
+        className="flex items-center justify-center w-10 h-10 text-white bg-blue-700 rounded-full hover:bg-blue-800 transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 hover:shadow-lg z-10"
       >
         <svg
           version="1.1"

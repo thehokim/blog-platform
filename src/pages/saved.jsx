@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import BlogCard from "../components/BlogCard";
 import DvdScreenSave from "../components/dvdsave";
 import Footer from "../components/footer";
@@ -40,14 +40,12 @@ const Saved = () => {
         }
 
         const data = await response.json();
-        console.log("📢 Данные с сервера (до форматирования):", data); // ✅ Выводим в консоль
+        console.log("📢 Данные с сервера (до форматирования):", data);
 
-        // ✅ Проверяем формат даты перед обработкой
+        // Форматирование даты и изображений
         const formattedPosts = data.map((item) => {
           console.log("🔍 Исходные данные из API:", item);
-
           let formattedDate = "Unknown Date";
-
           if (item.date && typeof item.date === "string") {
             try {
               const parsedDate = new Date(item.date);
@@ -67,10 +65,9 @@ const Saved = () => {
             }
           }
 
-          // ✅ Правильное формирование массива изображений
           const images = Array.isArray(item.imageUrl)
             ? item.imageUrl.map((img) => ({
-                url: img.startsWith("http") ? img : `${BASE_URL}${img}`, // ✅ Проверяем, есть ли уже BASE_URL
+                url: img.startsWith("http") ? img : `${BASE_URL}${img}`,
               }))
             : [];
 
@@ -82,7 +79,7 @@ const Saved = () => {
               item.title?.length > 50
                 ? item.title.slice(0, 50) + "..."
                 : item.title || "Unknown Title",
-            images: images, // ✅ Теперь правильные URL и в saved, и в BlogCard
+            images: images,
             description: item.description || "No description available",
             date: formattedDate,
             author: {
@@ -136,29 +133,32 @@ const Saved = () => {
     );
   }
 
+  // Если постов нет — показываем компонент DvdScreenSave
+  const content = posts.length > 0 ? (
+    posts.map((post) => <BlogCard key={post.id} post={post} />)
+  ) : (
+    <div className="flex w-screen -ml-24 -mt-28 justify-center">
+      <DvdScreenSave />
+    </div>
+  );
+
   return (
-    <div className="bg-white dark:bg-gradient-to-br from-gray-200 via-gray-500 to-gray-700">
+    <div className="bg-white">
       <Navbar />
-      <div className="dark:bg-gradient-to-br from-gray-100 via-gray-500 to-gray-700 bg-white pb-24">
+      <div className="bg-white pb-24">
         <div className="relative w-screen">
           <img
             src={savedb}
             alt="Background"
-            className="w-full h-64 object-cover -mb-16 justify-start"
+            className="w-full h-64 object-cover -mb-16"
           />
-          <div className="absolute top-0 left-0 w-full h-full bg-gray-900 opacity-35 dark:bg-gray-900 dark:opacity-50" />
+          <div className="absolute top-0 left-0 w-full h-full bg-gray-900 opacity-35" />
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white text-center">
             <h1 className="text-4xl font-bold">{t("Сохраненные блоги")}</h1>
           </div>
         </div>
         <div className="mx-auto mt-10 grid max-w-2xl grid-cols-1 gap-x-16 gap-y-16 pt-10 sm:mt-16 sm:pt-16 lg:mx-0 lg:max-w-none lg:grid-cols-2 lg:px-24 px-6">
-          {posts.length > 0 ? (
-            posts.map((post) => <BlogCard key={post.id} post={post} />)
-          ) : (
-            <div className="flex w-screen -ml-24 -mt-28 justify-center">
-              <DvdScreenSave />
-            </div>
-          )}
+          {content}
         </div>
       </div>
       <Footer />

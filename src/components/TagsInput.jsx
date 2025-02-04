@@ -41,7 +41,7 @@ const TagsInput = ({ tags = [], setTags }) => {
   return (
     <div className="mt-6">
       {/* Добавить новый тег */}
-      <h3 className="text-lg font-bold flex text-gray-900 dark:text-gray-100 mb-3">
+      <h3 className="text-lg font-bold flex text-gray-900 mb-3">
         <Tag className="w-5 h-5 mt-1 mr-2" />
         {t("Добавить новый тег")}
       </h3>
@@ -51,7 +51,7 @@ const TagsInput = ({ tags = [], setTags }) => {
           placeholder={t("Введите тег")}
           value={newTag}
           onChange={(e) => setNewTag(e.target.value)}
-          className="w-full px-4 py-3 text-xl rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none"
+          className="w-full px-4 py-3 text-xl rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none"
         />
         <button
           onClick={addTag}
@@ -93,7 +93,7 @@ const TagsInput = ({ tags = [], setTags }) => {
 
       {/* Выбранные теги */}
       <div className="mt-4">
-        <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">
+        <h4 className="text-sm font-medium text-gray-800">
           {t("Выбранные теги")}:
         </h4>
         <div className="flex flex-wrap gap-2 mt-2">

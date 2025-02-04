@@ -37,7 +37,7 @@ function MyBlogs() {
       }
 
       const data = await response.json();
-      console.log("Ответ API:", data); // Лог данных API
+      console.log("Ответ API:", data);
 
       if (!Array.isArray(data)) {
         throw new Error("Некорректный формат данных от сервера.");
@@ -53,11 +53,10 @@ function MyBlogs() {
       // Форматируем посты
       const formattedPosts = data.map((item) => {
         console.log("🔍 Исходные данные из API:", item);
-      
-        // ✅ Универсальная обработка даты
+
+        // Универсальная обработка даты
         let formattedDate = "Unknown Date";
-        const rawDate = item.date || item.Date || item.updated_at; // Используем доступное поле даты
-      
+        const rawDate = item.date || item.Date || item.updated_at;
         if (rawDate && typeof rawDate === "string") {
           try {
             const parsedDate = new Date(rawDate);
@@ -76,25 +75,25 @@ function MyBlogs() {
             console.error("❌ Ошибка парсинга даты:", rawDate, error);
           }
         }
-      
-        // ✅ Универсальная обработка изображений
+
+        // Универсальная обработка изображений
         const images = Array.isArray(item.Images)
           ? item.Images.map((img) => ({
-              url: img.url.startsWith("http") ? img.url : `${BASE_URL}${img.url}`, // Проверяем, есть ли уже BASE_URL
+              url: img.url.startsWith("http") ? img.url : `${BASE_URL}${img.url}`,
             }))
           : [];
-      
+
         console.log("✅ Сформированные images для 'Мои блоги':", images);
-      
+
         return {
           id: item.ID || item.id || item.post_id,
           title:
             item.title?.length > 50
               ? item.title.slice(0, 50) + "..."
               : item.title || "Unknown Title",
-          images: images, // ✅ Теперь правильные URL
+          images: images,
           description: item.description || "No description available",
-          date: formattedDate, // ✅ Дата теперь корректно тянется
+          date: formattedDate,
           author: {
             name: item.Author?.username || "Unknown Author",
             imageUrl: item.Author?.avatar
@@ -107,22 +106,14 @@ function MyBlogs() {
           post_id: item.ID || item.id || item.post_id,
         };
       });
-      
-      
-      
 
       console.log("Formatted posts:", formattedPosts);
-      setPosts(formattedPosts);
-
-      // console.log("Formatted posts:", formattedPosts);
-      setPosts(formattedPosts);
-
-      //   console.log('Форматированные посты:', formattedPosts);
-
       setPosts(formattedPosts);
     } catch (error) {
       console.error("Ошибка:", error);
       Swal.fire("Ошибка", error.message, "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -145,7 +136,7 @@ function MyBlogs() {
     });
 
     if (!confirmation.isConfirmed) {
-      return; // Отмена удаления
+      return;
     }
 
     try {
@@ -188,10 +179,8 @@ function MyBlogs() {
     }
   };
 
-  
-
   return (
-    <div className="bg-white dark:bg-gradient-to-br from-gray-200 via-gray-500 to-gray-700">
+    <div className="bg-white">
       <Navbar />
       <div className="bg-white pb-20">
         <div className="relative w-screen">
@@ -200,28 +189,25 @@ function MyBlogs() {
             alt="Background"
             className="w-full h-64 object-cover -mb-16"
           />
-          <div className="absolute top-0 left-0 w-full h-full bg-gray-900 opacity-45 dark:bg-gray-900 dark:opacity-50" />
+          <div className="absolute top-0 left-0 w-full h-full bg-gray-900 opacity-45" />
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white text-center">
             <h1 className="text-4xl font-bold">{t("Мои блоги")}</h1>
           </div>
         </div>
 
-        {/* Условный рендеринг */}
         {posts.length > 0 ? (
           <div className="mx-auto mt-10 grid max-w-2xl grid-cols-1 gap-x-16 gap-y-16 pt-10 sm:mt-16 sm:pt-16 lg:mx-0 lg:max-w-none lg:grid-cols-2 lg:px-24 px-6">
             {posts.map((post) => (
               <div key={post.id} className="relative">
-                <BlogCard key={post.id} post={post} />
+                <BlogCard post={post} />
                 <button
                   className="absolute -top-2 -right-2 h-7 w-7 bg-red-600 rounded-full transform hover:-translate-y-0.5 transition-all duration-300 ease-in-out"
                   onClick={() => deletePost(post.id)}
                 >
                   <svg
-                    id="Layer_1"
-                    data-name="Layer 1"
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 110.61 122.88"
-                    className="fill-gray-300 ml-1.5 w-4 h-4 transition-all duration-300 ease-in-out hover:fill-black transform hover:-translate-y-0"
+                    className="fill-gray-300 ml-1.5 w-4 h-4 transition-all duration-300 ease-in-out hover:fill-black"
                   >
                     <path d="M39.27,58.64a4.74,4.74,0,1,1,9.47,0V93.72a4.74,4.74,0,1,1-9.47,0V58.64Zm63.6-19.86L98,103a22.29,22.29,0,0,1-6.33,14.1,19.41,19.41,0,0,1-13.88,5.78h-45a19.4,19.4,0,0,1-13.86-5.78l0,0A22.31,22.31,0,0,1,12.59,103L7.74,38.78H0V25c0-3.32,1.63-4.58,4.84-4.58H27.58V10.79A10.82,10.82,0,0,1,38.37,0H72.24A10.82,10.82,0,0,1,83,10.79v9.62h23.35a6.19,6.19,0,0,1,1,.06A3.86,3.86,0,0,1,110.59,24c0,.2,0,.38,0,.57V38.78Zm-9.5.17H17.24L22,102.3a12.82,12.82,0,0,0,3.57,8.1l0,0a10,10,0,0,0,7.19,3h45a10.06,10.06,0,0,0,7.19-3,12.8,12.8,0,0,0,3.59-8.1L93.37,39ZM71,20.41V12.05H39.64v8.36ZM61.87,58.64a4.74,4.74,0,1,1,9.47,0V93.72a4.74,4.74,0,1,1-9.47,0V58.64Z" />
                   </svg>

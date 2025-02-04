@@ -10,10 +10,11 @@ import { Tag } from "lucide-react";
 
 const BlogCard = ({ post, authToken }) => {
   const navigate = useNavigate();
-  // Если данных пока нет, показываем скелетоны
+
+  // Если данные ещё не пришли — показываем скелетоны
   if (!post) {
     return (
-      <article className="relative max-w-2xl flex-col items-start justify-between dark:bg-gray-300 bg-gray-50 rounded-lg h-full p-6">
+      <article className="relative w-full max-w-xl sm:max-w-2xl flex-col items-start justify-between bg-gray-50 rounded-lg h-full p-6">
         <div className="flex items-center gap-x-4 text-xs">
           <Skeleton width={80} height={16} />
           <Skeleton width={100} height={20} />
@@ -29,7 +30,7 @@ const BlogCard = ({ post, authToken }) => {
 
         <div className="relative mt-8 flex items-center gap-x-4">
           <Skeleton circle={true} height={40} width={40} />
-          <div className="text-sm/6 flex flex-col gap-y-1">
+          <div className="text-sm flex flex-col gap-y-1">
             <Skeleton width={100} height={16} />
             <Skeleton width={150} height={16} />
           </div>
@@ -38,31 +39,24 @@ const BlogCard = ({ post, authToken }) => {
     );
   }
 
-  // Функция перехода на страницу поста
+  // Переход на страницу поста
   const handleNavigateToPost = () => {
     navigate(`/content/${post.id}`);
   };
 
+  // Форматирование даты
   const formatDate = (dateString) => {
     if (!dateString) return "Дата неизвестна";
-
     let parsedDate;
-
-    // Если формат ISO с пробелом, заменяем пробел на T
     if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateString)) {
       parsedDate = new Date(dateString.replace(" ", "T"));
-    }
-    // Если формат DD.MM.YYYY, HH:MM
-    else if (/^\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/.test(dateString)) {
+    } else if (/^\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/.test(dateString)) {
       const [datePart, timePart] = dateString.split(", ");
       const [day, month, year] = datePart.split(".");
       parsedDate = new Date(`${year}-${month}-${day}T${timePart}`);
-    }
-    // Если уже валидный ISO
-    else {
+    } else {
       parsedDate = new Date(dateString);
     }
-
     return !isNaN(parsedDate.getTime())
       ? new Intl.DateTimeFormat("ru-RU", {
           year: "numeric",
@@ -75,13 +69,12 @@ const BlogCard = ({ post, authToken }) => {
   };
 
   return (
-    <article className="relative max-w-2xl flex flex-col items-start justify-between transition-all duration-200 ease-in-out transform border border-px border-[#f1f1f3]  dark:bg-gray-300 bg-white rounded-lg p-6">
+    <article className="relative w-full max-w-xl sm:max-w-2xl md:max-w-3xl xl:max-w-4xl flex flex-col items-start justify-between transition-all duration-200 ease-in-out transform border border-px border-[#f1f1f3] bg-white rounded-lg p-6">
       {/* Дата и теги */}
-      <div className="flex items-center justify-between w-full text-xs text-gray-500 dark:text-gray-700">
+      <div className="flex items-center justify-between w-full text-xs text-gray-500">
         <time dateTime={post.date}>
           {post.date ? formatDate(post.date) : "Дата неизвестна"}
         </time>
-
         <div className="flex flex-wrap gap-1">
           {Array.isArray(post.tags) &&
             post.tags.map((tag, index) => (
@@ -96,27 +89,27 @@ const BlogCard = ({ post, authToken }) => {
         </div>
       </div>
 
-      {/* Контент */}
-      <div className="flex w-full mt-3">
-        {/* Изображение поста */}
-        <div className="w-1/3">
-        {Array.isArray(post.images) && post.images.length > 0 ? (
-  <div className="w-full h-48 relative overflow-hidden rounded-lg bg-gray-100">
-    <img
-      alt={post.title}
-      src={
-        post.images[0]?.url.startsWith("http")
-          ? post.images[0]?.url
-          : `${BASE_URL}${post.images[0]?.url}`
-      }
-      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-      onClick={handleNavigateToPost}
-      onError={(e) => {
-        console.error("❌ Ошибка загрузки изображения:", e.target.src);
-        e.target.src = "/placeholder.png"; // Заглушка, если картинка не загружается
-      }}
-    />
-  </div>
+      {/* Контент поста: изображение и текст */}
+      <div className="flex flex-col md:flex-row w-full mt-3">
+        {/* Изображение */}
+        <div className="w-full md:w-1/3">
+          {Array.isArray(post.images) && post.images.length > 0 ? (
+            <div className="w-full h-48 relative overflow-hidden rounded-lg bg-gray-100">
+              <img
+                alt={post.title}
+                src={
+                  post.images[0]?.url.startsWith("http")
+                    ? post.images[0]?.url
+                    : `${BASE_URL}${post.images[0]?.url}`
+                }
+                className="w-full h-full object-cover transition-transform duration-300 hover:scale-105 cursor-pointer"
+                onClick={handleNavigateToPost}
+                onError={(e) => {
+                  console.error("❌ Ошибка загрузки изображения:", e.target.src);
+                  e.target.src = "/placeholder.png";
+                }}
+              />
+            </div>
           ) : (
             <svg
               version="1.1"
@@ -135,15 +128,15 @@ const BlogCard = ({ post, authToken }) => {
         </div>
 
         {/* Текстовая информация */}
-        <div className="w-2/3 pl-4 mt-8">
+        <div className="w-full md:w-2/3 md:pl-4 mt-4 md:mt-10">
           <h3
-            className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate cursor-pointer"
+            className="text-lg font-semibold text-gray-900 truncate cursor-pointer"
             onClick={handleNavigateToPost}
           >
             {post.title || "Untitled"}
           </h3>
           <p
-            className="mt-2 text-sm text-gray-600 dark:text-gray-400 line-clamp-3 overflow-hidden text-ellipsis"
+            className="mt-2 text-sm text-gray-600 line-clamp-3 overflow-hidden text-ellipsis cursor-pointer"
             onClick={handleNavigateToPost}
           >
             {typeof post.description === "string"
@@ -153,10 +146,9 @@ const BlogCard = ({ post, authToken }) => {
         </div>
       </div>
 
-      {/* Автор и кнопки */}
+      {/* Информация об авторе и кнопки */}
       <div className="relative mt-5 flex items-center justify-between">
         <div className="flex items-center">
-          {/* Аватар автора */}
           {post.author?.imageUrl ? (
             <img
               alt={post.author?.name || "Author"}
@@ -165,7 +157,7 @@ const BlogCard = ({ post, authToken }) => {
                   ? post.author.imageUrl
                   : `${BASE_URL}${post.author.imageUrl}`
               }
-              className="size-10 rounded-full bg-gray-50"
+              className="w-10 h-10 rounded-full bg-gray-50"
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.src =
@@ -173,7 +165,7 @@ const BlogCard = ({ post, authToken }) => {
               }}
             />
           ) : (
-            <div className="relative w-10 h-10 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600">
+            <div className="relative w-10 h-10 overflow-hidden bg-gray-100 rounded-full">
               <svg
                 className="absolute w-12 h-12 text-gray-400 -left-1"
                 fill="currentColor"
@@ -188,16 +180,13 @@ const BlogCard = ({ post, authToken }) => {
               </svg>
             </div>
           )}
-
-          {/* Имя автора */}
           <div className="ml-3 text-sm">
-            <p className="font-semibold text-gray-900 dark:text-gray-100">
+            <p className="font-semibold text-gray-900">
               {post.author?.name || "Unknown Author"}
             </p>
           </div>
         </div>
 
-        {/* Кнопки */}
         <div className="flex ml-5 items-center space-x-4">
           <LikeButton postId={post.id} authToken={authToken} />
           <SaveButton postId={post.id} />

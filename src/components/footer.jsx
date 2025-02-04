@@ -7,9 +7,10 @@ function Footer() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <footer className="bg-blue-700 border-gray-200 dark:bg-gray-900">
+    <footer className="bg-blue-700 border-gray-200">
       <div className="mx-auto w-full max-w-screen-xl p-4 py-6 lg:py-8 text-white">
         <div className="flex flex-wrap justify-between items-center space-y-4 lg:space-y-0">
+          {/* Логотип */}
           <Link to="/" className="flex items-center">
             <svg
               width="105"
@@ -35,12 +36,13 @@ function Footer() {
                 fill="white"
               />
               <path
-                d="M65.1994 11.5509C61.5564 13.6417 61.8437 13.9797 58.8453 12.4137C59.1783 15.6156 57.6899 15.9757 55.7148 17.2361L55.6376 17.2851C54.6945 17.8868 51.5201 19.9112 50.8809 20.6552C55.554 18.5816 58.504 13.823 61.5855 17.0643C61.2701 13.6142 62.2104 13.7416 64.6732 12.426C70.1808 9.48437 75.6988 6.74842 81.8429 4.87011C84.7302 3.98725 93.4264 1.58189 94.6376 5.39819C95.7792 8.99423 90.3892 14.4171 89.1281 16.1951C90.0186 15.7109 92.6286 12.6627 93.4335 11.5575C101.056 1.09298 93.9432 0.0774337 83.9191 3.21062C77.9782 5.0678 70.5483 8.48092 65.1994 11.5509Z"
+                d="M65.1998 11.5509C61.5564 13.6417 61.8437 13.9797 58.8453 12.4137C59.1783 15.6156 57.6899 15.9757 55.7148 17.2361L55.6376 17.2851C54.6945 17.8868 51.5201 19.9112 50.8809 20.6552C55.554 18.5816 58.504 13.823 61.5855 17.0643C61.2701 13.6142 62.2104 13.7416 64.6732 12.426C70.1808 9.48437 75.6988 6.74842 81.8429 4.87011C84.7302 3.98725 93.4264 1.58189 94.6376 5.39819C95.7792 8.99423 90.3892 14.4171 89.1281 16.1951C90.0186 15.7105 92.6286 12.6627 93.4335 11.5575C101.056 1.09249 93.9432 0.0774337 83.9191 3.21013C77.9782 5.0678 70.5483 8.48043 65.1998 11.5509Z"
                 fill="white"
               />
             </svg>
           </Link>
-          {/* Кнопка-гамбургер */}
+
+          {/* Кнопка-гамбургер для мобильного меню */}
           <button
             className="block lg:hidden text-white focus:outline-none"
             onClick={() => setMenuOpen(!menuOpen)}
@@ -52,19 +54,12 @@ function Footer() {
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M4 6h16M4 12h16M4 18h16"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <nav
-            className={`${
-              menuOpen ? "block" : "hidden"
-            } lg:flex space-x-6 text-white font-medium`}
-          >
+
+          {/* Навигация */}
+          <nav className={`${menuOpen ? "block" : "hidden"} lg:flex space-x-6 text-white font-medium`}>
             <a href="https://training.cmspace.uz/courses" className="hover:underline">
               {t("Курсы")}
             </a>
@@ -88,7 +83,9 @@ function Footer() {
             </Link>
           </nav>
         </div>
+
         <hr className="my-6 border-gray-300" />
+
         <div className="flex justify-between items-center">
           <span className="text-sm">© SMC 2024. {t("Все права защищены")}</span>
           <div className="flex space-x-6">

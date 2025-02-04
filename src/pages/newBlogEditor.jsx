@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "../components/navbar";
 import Footer from "../components/footer";
 import TitleInput from "../components/TitleInput";
@@ -21,27 +21,29 @@ const BlogEditor = () => {
   const { t } = useTranslation();
   const initialColumns = [t("Column 1"), t("Column 2"), t("Column 3")];
 
-
   const [blogData, setBlogData] = useState({
-  title: "",
-  description: "",
-  tags: [],
-  images: [],
-  maps: [],
-  videos: [],
-  tables: {
-    columns: initialColumns, // ✅ Три локализованных столбца
-    rows: Array.from({ length: 3 }).map(() => ({
-      [initialColumns[0]]: "",
-      [initialColumns[1]]: "",
-      [initialColumns[2]]: "",
-    })), // ✅ Три строки
-  },
-});
+    title: "",
+    description: "",
+    tags: [],
+    images: [],
+    maps: [],
+    videos: [],
+    tables: {
+      columns: initialColumns, // Три локализованных столбца
+      rows: Array.from({ length: 3 }).map(() => ({
+        [initialColumns[0]]: "",
+        [initialColumns[1]]: "",
+        [initialColumns[2]]: "",
+      })), // Три строки
+    },
+  });
 
-
+  // Состояние для маркеров карты
   const [markerPositions, setMarkerPositions] = useState([]);
+  // Состояние для загрузки карты Google
+  const [isLoaded, setIsLoaded] = useState(false);
 
+  // Добавление маркера по клику на карту
   const handleClick = (event) => {
     setMarkerPositions((prevMarkers) => [
       ...prevMarkers,
@@ -52,19 +54,20 @@ const BlogEditor = () => {
     ]);
   };
 
+  // При изменении маркеров обновляем данные блога
   useEffect(() => {
     setBlogData((prev) => ({
       ...prev,
       maps: markerPositions,
     }));
-  }, [markerPositions.length]);
+  }, [markerPositions]);
 
-  // 📌 Обработчик изменений полей
+  // Обработчик изменений полей ввода
   const handleInputChange = (e, key) => {
     setBlogData({ ...blogData, [key]: e.target.value });
   };
 
-  // 📌 Обработчик загрузки изображений
+  // Обработчик загрузки изображений
   const handleFileUpload = (files) => {
     setBlogData((prev) => ({
       ...prev,
@@ -72,7 +75,7 @@ const BlogEditor = () => {
     }));
   };
 
-  // 📌 Обработчик изменения видео
+  // Обработчик изменения видео
   const handleVideoChange = (embedUrl) => {
     setBlogData((prev) => ({
       ...prev,
@@ -80,7 +83,7 @@ const BlogEditor = () => {
     }));
   };
 
-  // 📌 Обработчик точек на карте
+  // Обработчик точек на карте (если требуется отдельно)
   const handleMapPoints = (points) => {
     setBlogData((prev) => ({
       ...prev,
@@ -88,11 +91,13 @@ const BlogEditor = () => {
     }));
   };
 
+  // Очистка всех маркеров
   const clearMarkers = () => {
     console.log("⚠️ Очистка всех меток");
     setMarkerPositions([]);
   };
 
+  // Обработчик изменений в таблице
   const handleTableChange = (e, rowIndex, column) => {
     setBlogData((prev) => {
       const updatedRows = [...prev.tables.rows];
@@ -100,12 +105,11 @@ const BlogEditor = () => {
         ...updatedRows[rowIndex],
         [column]: e.target.value,
       };
-
       return { ...prev, tables: { ...prev.tables, rows: updatedRows } };
     });
   };
 
-  // Обновление заголовков
+  // Обработчик изменения заголовков столбцов
   const handleHeaderChange = (e, colIndex) => {
     setBlogData((prev) => {
       const updatedColumns = [...prev.tables.columns];
@@ -127,14 +131,13 @@ const BlogEditor = () => {
     });
   };
 
-  // Добавление строки
+  // Добавление строки в таблицу
   const addRow = () => {
     setBlogData((prev) => {
       const newRow = prev.tables.columns.reduce((acc, col) => {
         acc[col] = "";
         return acc;
       }, {});
-
       return {
         ...prev,
         tables: {
@@ -145,7 +148,7 @@ const BlogEditor = () => {
     });
   };
 
-  // Удаление строки
+  // Удаление строки из таблицы
   const removeRow = (rowIndex) => {
     setBlogData((prev) => {
       const updatedRows = prev.tables.rows.filter((_, i) => i !== rowIndex);
@@ -153,68 +156,57 @@ const BlogEditor = () => {
     });
   };
 
-  // Добавление столбца
+  // Добавление столбца в таблицу
   const addColumn = () => {
     setBlogData((prev) => {
       const existingColumns = prev.tables.columns;
-  
-      // 🔥 Используем локализованное название для "Column"
-      const columnBaseName = t("Column"); // Например, "Столбец"
-  
+      const columnBaseName = t("Column");
       let columnIndex = 1;
       let newColumn;
       do {
-        newColumn = `${columnBaseName} ${columnIndex}`; // 📌 Локализуем "Column"
+        newColumn = `${columnBaseName} ${columnIndex}`;
         columnIndex++;
-      } while (existingColumns.includes(newColumn)); // ✅ Гарантируем уникальность
-  
+      } while (existingColumns.includes(newColumn));
+
       console.log(`🆕 Добавление новой колонки: ${newColumn}`);
-  
+
       return {
         ...prev,
         tables: {
-          columns: [...existingColumns, newColumn], // ✅ Добавляем новый уникальный столбец
+          columns: [...existingColumns, newColumn],
           rows: prev.tables.rows.map((row) => ({
             ...row,
-            [newColumn]: "", // ✅ Добавляем пустое поле в каждую строку
+            [newColumn]: "",
           })),
         },
       };
     });
   };
-  
-  
-  
 
-  // Удаление столбца
+  // Удаление столбца из таблицы
   const removeColumn = (colIndex) => {
     setBlogData((prev) => {
-      if (prev.tables.columns.length === 1) return prev; // ❌ Запрещаем удалять последний столбец
-  
+      if (prev.tables.columns.length === 1) return prev;
       const updatedColumns = [...prev.tables.columns];
-      const removedColumn = updatedColumns[colIndex]; // Название удаляемого столбца
-      updatedColumns.splice(colIndex, 1); // ✅ Удаляем колонку из заголовков
-  
+      const removedColumn = updatedColumns[colIndex];
+      updatedColumns.splice(colIndex, 1);
       return {
         ...prev,
         tables: {
           columns: updatedColumns,
           rows: prev.tables.rows.map((row) => {
             const newRow = { ...row };
-            delete newRow[removedColumn]; // ❌ Избегаем дубликатов
+            delete newRow[removedColumn];
             return newRow;
           }),
         },
       };
     });
   };
-  
-  
 
-  // 📌 Обработчик отправки формы
+  // Обработчик отправки формы
   const handleSubmit = async () => {
     const formData = new FormData();
-
     formData.append("title", blogData.title);
     formData.append("description", blogData.description.trim());
     formData.append("tags", JSON.stringify(blogData.tags));
@@ -227,23 +219,20 @@ const BlogEditor = () => {
       latitude: point.lat,
       longitude: point.lng,
     }));
-
     formData.append("maps", JSON.stringify(formattedMaps));
     formData.append("videos", JSON.stringify(blogData.videos));
 
-    // ✅ Исправленный формат таблицы
     const formattedTables = [
       {
         columns: blogData.tables.columns,
         rows: blogData.tables.rows.map((row) => {
           return blogData.tables.columns.reduce((acc, col) => {
-            acc[col] = row[col] || ""; // Заполняем все колонки
+            acc[col] = row[col] || "";
             return acc;
           }, {});
         }),
       },
     ];
-
     formData.append("tables", JSON.stringify(formattedTables));
 
     console.log("📤 Отправляемые данные:", {
@@ -287,11 +276,11 @@ const BlogEditor = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-700">
+    <div className="min-h-screen bg-gray-100">
       <Navbar />
       <main className="container mx-auto px-4 py-8 max-w-screen-lg">
-        <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-8">
-          <h2 className="text-3xl text-center font-bold mb-12 text-gray-900 dark:text-gray-100 flex items-center justify-center gap-2">
+        <div className="bg-white shadow-sm rounded-xl p-8">
+          <h2 className="text-3xl text-center font-bold mb-12 text-gray-900 flex items-center justify-center gap-2">
             {t("Создать блог")}
             <FiPenTool className="w-6 h-6" />
           </h2>
@@ -303,7 +292,7 @@ const BlogEditor = () => {
           />
 
           {/* Загрузка изображений */}
-          <h1 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <h1 className="text-lg font-semibold mb-4 text-gray-900 flex items-center gap-2">
             <FiImage className="w-5 h-5" /> {t("Image")}
           </h1>
           <ImageUpload onFilesSelected={handleFileUpload} />
@@ -315,11 +304,11 @@ const BlogEditor = () => {
           />
 
           {/* Карта */}
-          <h1 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <h1 className="text-lg font-semibold mb-4 text-gray-900 flex items-center gap-2">
             <Map className="w-5 h-5" /> {t("Карта")}
           </h1>
 
-          <div className="mb-4 bg-white border border-gray-200 dark:border-gray-600 dark:bg-gray-800 rounded-lg p-4">
+          <div className="mb-4 bg-white border border-gray-200 rounded-lg p-4">
             <LoadScript
               googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
             >
@@ -344,14 +333,14 @@ const BlogEditor = () => {
                 {t("Clear All Markers")}
               </button>
             ) : (
-              <p className="mt-4 text-center text-gray-500 dark:text-gray-400">
+              <p className="mt-4 text-center text-gray-500">
                 {t("No markers selected. Click on the map to add markers.")}
               </p>
             )}
           </div>
 
           {/* Видео */}
-          <h1 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <h1 className="text-lg font-semibold mb-4 text-gray-900 flex items-center gap-2">
             <Video className="w-5 h-5" /> {t("Видео")}
           </h1>
           <VideoSection
@@ -360,7 +349,7 @@ const BlogEditor = () => {
           />
 
           {/* Таблицы */}
-          <h1 className="text-lg font-semibold mb-4 mt-2 text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <h1 className="text-lg font-semibold mb-4 mt-2 text-gray-900 flex items-center gap-2">
             <Table className="w-5 h-5" /> {t("Таблица")}
           </h1>
           <TableSection

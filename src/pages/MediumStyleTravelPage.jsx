@@ -26,14 +26,13 @@ const MediumStyleTravelPage = ({ data }) => {
   const token = localStorage.getItem("token"); // Проверяем, есть ли токен
   const userId = localStorage.getItem("userId") || null;
   const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    console.log("📥 Полученные данные:", data);
-    console.log("Данные карт перед обработкой:", data.maps);
-    console.log("Обработанные координаты:", markerPositions);
-  }, [data.maps]);
   const { t } = useTranslation();
   const defaultCenter = { lat: 41.2995, lng: 69.2401 };
+
+  // Функция для копирования текста в буфер обмена
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+  };
 
   // Обрабатываем теги
   const safeTags = Array.isArray(data.tags)
@@ -55,16 +54,18 @@ const MediumStyleTravelPage = ({ data }) => {
           }))
       : [];
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-  };
-
   const formattedDate = data.date
     ? format(new Date(data.date), "d MMMM yyyy, HH:mm", { locale: ru })
     : t("Дата неизвестна");
 
+  useEffect(() => {
+    console.log("📥 Полученные данные:", data);
+    console.log("Данные карт перед обработкой:", data.maps);
+    console.log("Обработанные координаты:", markerPositions);
+  }, [data.maps, markerPositions]);
+
   return (
-    <div className="max-w-5xl w-full mx-auto px-8 py-12 mt-10 mb-10 bg-white dark:bg-gray-200 border border-px border-[#f1f1f3] rounded-lg">
+    <div className="max-w-5xl w-full mx-auto px-8 py-12 mt-10 mb-10 bg-white border border-px border-[#f1f1f3] rounded-lg">
       {/* Заголовок */}
       {data?.title && (
         <header className="mb-8">
@@ -90,7 +91,7 @@ const MediumStyleTravelPage = ({ data }) => {
                     }}
                   />
                 ) : (
-                  <div className="relative w-10 h-10 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600">
+                  <div className="relative w-10 h-10 overflow-hidden bg-gray-100 rounded-full">
                     <svg
                       className="absolute w-12 h-12 text-gray-400 -left-1"
                       fill="currentColor"
@@ -144,8 +145,6 @@ const MediumStyleTravelPage = ({ data }) => {
               )}
             </div>
           </div>
-
-          {/* Теги */}
         </header>
       )}
 
@@ -174,7 +173,7 @@ const MediumStyleTravelPage = ({ data }) => {
                 disableOnInteraction: false,
               }}
               modules={[Navigation, Pagination, Autoplay]}
-              className="w-full max-w-[800px] mx-auto rounded-lg overflow-hidden" // Ограничиваем максимальную ширину
+              className="w-full max-w-[800px] mx-auto rounded-lg overflow-hidden"
             >
               {data.images.map((img, index) => (
                 <SwiperSlide key={index} className="relative">
@@ -190,8 +189,8 @@ const MediumStyleTravelPage = ({ data }) => {
                 </SwiperSlide>
               ))}
 
-              {/* Custom Navigation Buttons */}
-              <button className="swiper-button-prev absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center  transition-all duration-300 opacity-0 group-hover:opacity-100 z-10"></button>
+              {/* Кастомные кнопки навигации */}
+              <button className="swiper-button-prev absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center transition-all duration-300 opacity-0 group-hover:opacity-100 z-10"></button>
               <button className="swiper-button-next absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center transition-all duration-300 opacity-0 group-hover:opacity-100 z-10"></button>
             </Swiper>
           </div>
@@ -246,6 +245,7 @@ const MediumStyleTravelPage = ({ data }) => {
         </section>
       )}
 
+      {/* Таблица */}
       {Array.isArray(data.tables) &&
         data.tables.length > 0 &&
         Array.isArray(data.tables[0].columns) &&
@@ -297,14 +297,11 @@ const MediumStyleTravelPage = ({ data }) => {
             {data.videos.map((video, index) => {
               let embedUrl = video.url;
 
-              // Автоматически заменяем YouTube-ссылки на embed-формат
+              // Преобразование YouTube-ссылок в embed-формат
               if (video.url.includes("youtube.com/watch")) {
                 embedUrl = video.url.replace("watch?v=", "embed/");
               } else if (video.url.includes("youtu.be/")) {
-                embedUrl = video.url.replace(
-                  "youtu.be/",
-                  "www.youtube.com/embed/"
-                );
+                embedUrl = video.url.replace("youtu.be/", "www.youtube.com/embed/");
               }
 
               return (
@@ -317,7 +314,7 @@ const MediumStyleTravelPage = ({ data }) => {
                   allowFullScreen
                   onError={(e) => {
                     console.error("Ошибка загрузки видео:", embedUrl);
-                    e.target.style.display = "none"; // Скрываем, если видео не загружается
+                    e.target.style.display = "none";
                   }}
                 />
               );
@@ -327,32 +324,18 @@ const MediumStyleTravelPage = ({ data }) => {
       )}
 
       {/* Комментарии */}
-      {/* <section className="relative mt-8">
+      <section className="relative mt-8">
         {token ? (
-          <CommentSectionOld
-            commentsData={data.comments}
-            currentUser={data.currentUser}
-            postId={data.id}
+          <CommentSection
+            userId={userId} // ID текущего пользователя
+            postId={data.id} // ID поста
             token={token}
-            blogAuthor={data.author}
+            blogAuthorId={data.author.id} // Передаем ID автора поста
           />
         ) : (
-          <p className="text-gray-500">бы оставить комментарий.</p>
+          <p className="text-gray-500">Войдите, чтобы оставить комментарий.</p>
         )}
-      </section> */}
-
-<section className="relative mt-8">
-  {token ? (
-    <CommentSection
-      userId={userId} // ID текущего пользователя
-      postId={data.id} // ID поста
-      token={token}
-      blogAuthorId={data.author.id} // ✅ Передаем ID автора поста
-    />
-  ) : (
-    <p className="text-gray-500">Войдите, чтобы оставить комментарий.</p>
-  )}
-</section>
+      </section>
     </div>
   );
 };
