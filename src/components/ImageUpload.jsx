@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
-import { FiTrash, FiXCircle } from 'react-icons/fi';
-import { useTranslation } from 'react-i18next';
+import React, { useState } from "react";
+import { FiXCircle } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 
 const ImageUpload = ({ onFilesSelected }) => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const { t } = useTranslation();
+
   const handleFileChange = (event) => {
     const files = Array.from(event.target.files);
-    setSelectedFiles((prev) => [...prev, ...files]); // Сохраняем объекты File
+    setSelectedFiles((prev) => [...prev, ...files]);
     if (onFilesSelected) {
-      onFilesSelected([...selectedFiles, ...files]); // Передаем файлы в родительский компонент
+      onFilesSelected([...selectedFiles, ...files]);
     }
   };
 
@@ -22,10 +23,10 @@ const ImageUpload = ({ onFilesSelected }) => {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm mb-4">
+    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-600 mb-4">
       <label
         htmlFor="dropzone-file"
-        className="flex flex-col items-center justify-center w-full h-64 border border-px border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-800"
+        className="flex flex-col items-center justify-center w-full h-64 border border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-800"
       >
         <div className="flex flex-col items-center justify-center pt-5 pb-6">
           <svg
@@ -44,7 +45,8 @@ const ImageUpload = ({ onFilesSelected }) => {
             />
           </svg>
           <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-            <span className="font-semibold">{t('Click to upload')}</span> {t('or drag and drop')}
+            <span className="font-semibold">{t("Click to upload")}</span>{" "}
+            {t("or drag and drop")}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             SVG, PNG, JPG or GIF (MAX. 800x400px)
@@ -65,12 +67,16 @@ const ImageUpload = ({ onFilesSelected }) => {
           {selectedFiles.map((file, index) => (
             <div
               key={index}
-              className="relative group px-3 py-6 bg-white dark:bg-gray-700 rounded shadow-md overflow-hidden"
+              className="relative group bg-white dark:bg-gray-700 rounded  overflow-hidden"
             >
-              <p className="text-sm text-gray-500 dark:text-gray-300 truncate">{file.name}</p>
+              <img
+                src={URL.createObjectURL(file)}
+                alt="Uploaded"
+                className="w-full h-32 object-cover rounded"
+              />
               <button
                 onClick={() => handleDeleteImage(index)}
-                className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-md hover:bg-red-600 transition-all"
+                className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center  hover:bg-red-600 transition-all"
               >
                 <FiXCircle />
               </button>

@@ -98,6 +98,17 @@
     "Add Column":"Add Column",
     "Remove Row":"Remove Row",
     "Remove Column":"Remove Column",
-    "Enter value":"Enter value"
+    "Enter value":"Enter value",
+    "У вас еще нет аккаунт?": "You don't have an account yet?",
+    "Создайте тут":"Create here",
+    "Column": "Column",
+    "Column 1": "Column 1",
+    "Column 2": "Column 2",
+    "Column 3": "Column 3",
+    "Введите тег":"Enter your tag",
+    "поставил лайк вашему посту:":"liked your post:",
+    "поставил лайк на ваш ответ:":"liked your reply:",
+    "поставил лайк на ваш комментарий:":"liked your comment:"
+
   }
   

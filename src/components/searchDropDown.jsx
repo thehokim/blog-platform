@@ -1,135 +1,149 @@
 import { useTranslation } from "react-i18next";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
+import { BASE_URL } from "../utils/instance";
 
-const SearchDropdown = () => {
-  const { t, i18n } = useTranslation();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(t("Теги"));
+const SearchDropdown = ({ setPosts, allPosts }) => {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
-  const dropdownRef = useRef(null);
-
-  const categories = ["GIS", "AI", "JS", "Py", "React"];
-
-  const toggleDropdown = () => {
-    setIsDropdownOpen((prev) => !prev);
-  };
-
-  const handleCategoryClick = (category) => {
-    setSelectedCategory(category);
-    setIsDropdownOpen(false);
-  };
 
   const handleSearchSubmit = async (e) => {
     e.preventDefault();
-    const payload = {
-      category: selectedCategory !== t("Теги") ? selectedCategory : null,
-      query: searchQuery,
-    };
+  
+    if (!searchQuery.trim()) {
+      console.warn("Поисковой запрос пуст, сбрасываем посты.");
+      setPosts(allPosts); // Если запрос пуст — показываем все посты
+      return;
+    }
+  
+    const params = new URLSearchParams();
+    params.append("search", searchQuery);
+  
+    const apiUrl = `${BASE_URL}/search?${params.toString()}`;
+    console.log("Отправляем запрос:", apiUrl);
+  
     try {
-      const response = await fetch("/api/search", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: { Accept: "application/json" },
       });
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Search Results:", data);
-      } else {
-        console.error("Failed to fetch search results.");
+  
+      if (!response.ok) {
+        throw new Error(`Ошибка HTTP! Статус: ${response.status}`);
       }
+  
+      let data = await response.json();
+      console.log("🔍 Исходные данные поиска:", data);
+  
+      // Форматируем данные, чтобы соответствовали `saved`
+      const formattedPosts = data.map((item) => {
+        let formattedDate = "Unknown Date";
+        const rawDate = item.date || item.Date || item.updated_at; // Используем доступное поле даты
+      
+        if (rawDate && typeof rawDate === "string") {
+          try {
+            const parsedDate = new Date(rawDate);
+            if (!isNaN(parsedDate.getTime())) {
+              formattedDate = new Intl.DateTimeFormat("ru-RU", {
+                year: "numeric",
+                month: "numeric",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              }).format(parsedDate);
+            } else {
+              console.warn("⚠️ Некорректная дата:", rawDate);
+            }
+          } catch (error) {
+            console.error("❌ Ошибка парсинга даты:", rawDate, error);
+          }
+        }
+      
+        console.log("✅ Отформатированная дата:", formattedDate);
+      
+        // ✅ Обрабатываем изображения (добавляем BASE_URL при необходимости)
+        const images = Array.isArray(item.Images)
+          ? item.Images.map((img) => ({
+              url: img.url.startsWith("http") ? img.url : `${BASE_URL}${img.url}`,
+            }))
+          : [];
+      
+        // ✅ Обрабатываем автора (берем username и avatar)
+        const author = {
+          name: item.Author?.username || "Unknown Author",
+          imageUrl: item.Author?.avatar
+            ? item.Author.avatar.startsWith("http")
+              ? item.Author.avatar
+              : `${BASE_URL}${item.Author.avatar}`
+            : "/default-avatar.png",
+        };
+      
+        console.log("📌 Финальный объект поста:", {
+          id: item.ID || item.id,
+          title: item.title?.length > 50 ? item.title.slice(0, 50) + "..." : item.title || "Unknown Title",
+          images: images,
+          description: item.description || "No description available",
+          date: formattedDate,
+          author: author,
+          tags: item.Tags || [],
+          post_id: item.ID || item.id,
+        });
+      
+        return {
+          id: item.ID || item.id,
+          title: item.title?.length > 50 ? item.title.slice(0, 50) + "..." : item.title || "Unknown Title",
+          images: images,
+          description: item.description || "No description available",
+          date: formattedDate,
+          author: author,
+          tags: item.Tags || [],
+          post_id: item.ID || item.id,
+        };
+      });
+      
+      
+      console.log("✅ Отформатированные посты для поиска:", formattedPosts);
+      
+  
+      // Если данные найдены — обновляем state, иначе сбрасываем
+      setPosts(formattedPosts.length > 0 ? formattedPosts : []);
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Ошибка запроса:", error);
     }
   };
-
-  useEffect(() => {
-    setSelectedCategory(t("Теги"));
-  }, [i18n.language]);
+  
 
   return (
     <form className="max-w-lg mx-auto" onSubmit={handleSearchSubmit}>
-      <div className="flex">
+      <div className="relative w-full">
+        <input
+          type="search"
+          id="search-dropdown"
+          className="block p-2.5 w-full z-20 focus:outline-none text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 dark:bg-gray-600 dark:border-gray-600 dark:text-white"
+          placeholder={t("searchPlaceholder")}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          required
+        />
         <button
-          id="dropdown-button"
-          type="button"
-          className="flex-shrink-0 z-0 inline-flex items-center py-2.5 px-4 text-sm font-medium text-center text-gray-900 bg-gray-100 border border-gray-300 rounded-s-lg hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white dark:border-gray-600"
-          onClick={toggleDropdown}
+          type="submit"
+          className="absolute top-0 end-0 p-2.5 text-sm font-medium h-full text-white bg-blue-700 rounded-r-lg border border-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
         >
-          {selectedCategory}
           <svg
-            className="w-2.5 h-2.5 ms-2.5"
+            className="w-4 h-4"
             aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
-            viewBox="0 0 10 6"
+            viewBox="0 0 20 20"
           >
             <path
               stroke="currentColor"
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="2"
-              d="m1 1 4 4 4-4"
+              d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"
             />
           </svg>
         </button>
-        {isDropdownOpen && (
-          <div
-            ref={dropdownRef}
-            id="dropdown"
-            className="z-10 absolute mt-11 bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700 transition ease-in-out duration-200"
-          >
-            <ul
-              className="py-2 text-sm text-gray-700 dark:text-gray-200"
-              aria-labelledby="dropdown-button"
-            >
-              {categories.map((category) => (
-                <li key={category}>
-                  <button
-                    type="button"
-                    className="inline-flex w-full px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white focus:outline-none"
-                    onClick={() => handleCategoryClick(category)}
-                  >
-                    {category}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        <div className="relative w-full">
-          <input
-            type="search"
-            id="search-dropdown"
-            className="block p-2.5 w-full z-20 text-sm text-gray-900 bg-gray-50 rounded-e-lg border-s-gray-50 border-s-2 border border-gray-300 dark:bg-gray-600 dark:border-s-gray-600  dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-            placeholder={t("searchPlaceholder")}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            required
-          />
-          <button
-            type="submit"
-            className="absolute top-0 end-0 p-2.5 text-sm font-medium h-full text-white bg-blue-700 rounded-e-lg border border-blue-700 hover:bg-blue-800  dark:bg-blue-600 dark:hover:bg-blue-700"
-          >
-            <svg
-              className="w-4 h-4"
-              aria-hidden="true"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 20 20"
-            >
-              <path
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"
-              />
-            </svg>
-            <span className="sr-only">Поиск</span>
-          </button>
-        </div>
       </div>
     </form>
   );

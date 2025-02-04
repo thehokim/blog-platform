@@ -100,6 +100,16 @@
     "Remove Column":"Ustunni o‘chirish",
     "Enter value":"Qiymatni kiriting",
     "Column Title":"Ustun sarlavhasi",
-    "Enter VideoLink":"Video havola kiriting"
+    "Enter VideoLink":"Video havola kiriting",
+    "У вас еще нет аккаунт?": "Avval ro'yhatdan o'tmaganmisiz?",
+    "Создайте тут":"Shu yerda ro'yhatdan o'ting",
+    "Column": "Ustun",
+    "Column 1": "Ustun 1",
+    "Column 2": "Ustun 2",
+    "Column 3": "Ustun 3",
+    "Введите тег":"Teg kiriting",
+    "поставил лайк вашему посту:":"postingizga like qoldirdi:",
+    "поставил лайк на ваш ответ:":"javobingizga like qoldirdi:",
+    "поставил лайк на ваш комментарий:":"izohingizga like qoldirdi:"
 }
   

@@ -1,455 +1,256 @@
-import React, { useEffect, useState } from 'react';
-import Navbar from '../components/navbar'; // Предполагаем, что у вас уже есть Navbar
-import Footer from '../components/footer'; // И Footer
-import notif from '../images/notif.png';
-import { useTranslation } from 'react-i18next';
-import { SaveAllIcon, SendHorizonal } from 'lucide-react';
-import DvdScreenNotif from '../components/dvdnotif';
-import { BASE_URL } from '../utils/instance';
+import React, { useEffect, useState } from "react";
+import Navbar from "../components/navbar";
+import Footer from "../components/footer";
+import notif from "../images/notif.png";
+import { useTranslation } from "react-i18next";
+import DvdScreenNotif from "../components/dvdnotif";
+import { BASE_URL } from "../utils/instance";
 
 const NotificationsPage = () => {
   const { t } = useTranslation();
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);  // Состояние загрузки
-  const [error, setError] = useState(null); 
-
-  const [replyText, setReplyText] = useState('');
-  const [editReplyText, setEditReplyText] = useState(''); // Для редактирования
-  const [activeReplyId, setActiveReplyId] = useState(null); // ID для ответа
-  const [editingReplyId, setEditingReplyId] = useState(null); // ID для редактирования
-  const currentUser = t('Вы'); // Текущий пользователь
-  const [showAllReplies, setShowAllReplies] = useState({});
-  const MAX_REPLY_LENGTH = 100; // Максимальная длина текста для обрезки
-  const [expandedReplies, setExpandedReplies] = useState({});
-  const MAX_WORDS = 100; // Максимальное количество слов
-  const CENSORED_WORDS = [
-    'fuck',
-    'shit',
-    'damn',
-    'bitch',
-    'asshole',
-    'bastard',
-    'dick',
-    'pussy',
-    'cunt',
-    'slut',
-    'whore',
-    'fag',
-    'nigger',
-    'nigga',
-    'cock',
-    'motherfucker',
-    'bullshit',
-    'crap',
-    'hell',
-    'suck',
-    'twat',
-    'jerk',
-    'wanker',
-    'prick',
-    'arse',
-    'bollocks',
-    'bugger',
-    'bloody',
-    'jala',
-    'jalab',
-    'jalap',
-    'dalbayop',
-    'dalbayob',
-    'yeban',
-    'yiban',
-    'yibansan',
-    'yibanakansan',
-    'dabba',
-    'cort',
-    'chort',
-    'chortsan',
-    'chortla',
-    'blya',
-    'zaebal',
-    'zaybal',
-    'pidr',
-    'pidor',
-    'pidoraz',
-    'pidaraz',
-    'pidaras',
-    'pizdes',
-    'pizdesu',
-    'pizdeku',
-    'yeblan',
-    'uyeban',
-    'qoto',
-    'qotoq',
-    'tasho',
-    'tashoq',
-    'bich',
-    'bic',
-    'kot',
-    "ko't",
-    'suka',
-    'sucka',
-    'suchka',
-    'shluxa',
-    'shlyuxa',
-    'wluxa',
-    'wlyuxa',
-    'oneni ami',
-    'qotagim',
-    "qo'tagim",
-    "qo'tag'im",
-  ];
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  // Состояние для показа всех уведомлений (кнопка "Показать все / Скрыть уведомления")
+  const [showAll, setShowAll] = useState(false);
+  const currentUserId = Number(localStorage.getItem("userId"));
 
   useEffect(() => {
-    // Функция для загрузки данных с бэкенда
     const fetchNotifications = async () => {
-      setLoading(true);  // Включаем индикатор загрузки
+      if (!currentUserId) {
+        console.error("❌ Ошибка: userId отсутствует в localStorage");
+        return;
+      }
       try {
-        const response = await fetch(`${BASE_URL}/notifications`);
+        const response = await fetch(
+          `${BASE_URL}/notifications?userId=${currentUserId}`
+        );
         if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+          const errorText = await response.text();
+          throw new Error(`Ошибка ${response.status}: ${errorText}`);
         }
         const data = await response.json();
-        setNotifications(data);
+        console.log("Данные с сервера:", data);
+        // Сортируем уведомления по дате (новейшие в начале)
+        const sortedData = data.sort(
+          (a, b) => new Date(b.created_at) - new Date(a.created_at)
+        );
+        // Если уведомлений больше 50, оставляем только первые 50 (новейшие)
+        const limitedData =
+          sortedData.length > 50 ? sortedData.slice(0, 50) : sortedData;
+        setNotifications(limitedData);
       } catch (err) {
-        console.error('Error fetching notifications:', err);
-        setError(t('Ошибка при загрузке уведомлений.')); // Показываем сообщение об ошибке
+        console.error("❌ Ошибка при загрузке уведомлений:", err);
+        setError(t("Ошибка при загрузке уведомлений."));
       } finally {
-        setLoading(false);  // Выключаем индикатор загрузки
+        setLoading(false);
       }
     };
 
     fetchNotifications();
+  }, [currentUserId, t]);
 
-    // Очистка состояния при размонтировании компонента
-    return () => {
-      setNotifications([]);
-      setError(null);
-    };
-  }, []);  // Пустой массив зависимостей - запрос будет выполнен только один раз
+  // Функция для определения текста уведомления и содержимого в зависимости от его типа
+  const getNotificationDetails = (notification) => {
+    let typeText = "";
+    let contentText = "";
 
-  if (loading) {
-    return <div>{t('Загрузка...')}</div>;  // Показываем индикатор загрузки
-  }
-
-  if (error) {
-    return <div>{error}</div>;  // Показываем сообщение об ошибке
-  }
-
-  const censorText = (text) => {
-    const regex = new RegExp(`\\b(${CENSORED_WORDS.join('|')})\\b`, 'giu');
-    return text.replace(regex, '****');
-  };
-
-  // Подсчёт слов
-  const countWords = (text) => {
-    return text.trim().split(/\s+/).length;
-  };
-
-  const toggleReplyExpansion = (notificationId, replyId) => {
-    const key = `${notificationId}-${replyId}`;
-    setExpandedReplies((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
-
-  // Форматирование времени
-  const formatDate = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('en-GB', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  // Добавление ответа
-  const handleAddReply = (notificationId) => {
-    if (replyText.trim() === '') return;
-
-    if (countWords(replyText) > MAX_WORDS) {
-      alert(t('MaxWords', { count: MAX_WORDS }));
-      return;
+    switch (notification.type) {
+      case "comment":
+        typeText = t("прокомментировал ваш пост:");
+        contentText =
+          notification.comment_content || t("Комментарий отсутствует");
+        break;
+      case "reply":
+        typeText = t("ответил на ваш комментарий:");
+        contentText = notification.reply_content || t("Ответ отсутствует");
+        break;
+      case "like_post":
+        typeText = t("поставил лайк вашему посту:");
+        break;
+      case "like_reply":
+        typeText = t("поставил лайк на ваш ответ:");
+        contentText = notification.reply_content || t("Ответ отсутствует");
+        break;
+      case "like_comment":
+        typeText = t("поставил лайк на ваш комментарий:");
+        contentText =
+          notification.comment_content || t("Комментарий отсутствует");
+        break;
+      default:
+        typeText = notification.message || "";
+        break;
     }
-
-    const censoredReply = censorText(replyText);
-
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.id === notificationId
-          ? {
-              ...notification,
-              replies: [
-                ...notification.replies,
-                {
-                  id: Date.now(),
-                  user: currentUser,
-                  comment: censoredReply,
-                  timestamp: new Date().toISOString(),
-                  likes: [],
-                },
-              ],
-            }
-          : notification
-      )
-    );
-    setReplyText('');
-    setActiveReplyId(null);
+    return { typeText, contentText };
   };
 
-  // Лайк/анлайк для комментария, ответа или уведомления
-  const handleLike = async (notificationId, replyId = null) => {
-    try {
-      // Отправка запроса на сервер
-      const response = await fetch(`${BASE_URL}/reaction`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          notificationId,
-          replyId,
-          user: currentUser,
-        }),
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to update like');
-      }
-  
-      const data = await response.json(); // Получаем обновленные данные (например, счетчик лайков)
-  
-      // Обновление состояния уведомлений с учетом полученных данных
-      setNotifications((prev) =>
-        prev.map((notification) => {
-          if (notification.id === notificationId) {
-            if (replyId === null) {
-              // Лайк для самого уведомления
-              const isLiked = notification.likes.includes(currentUser);
-              return {
-                ...notification,
-                likes: isLiked
-                  ? notification.likes.filter((user) => user !== currentUser)
-                  : [...notification.likes, currentUser],
-              };
-            } else {
-              // Лайк для ответа
-              return {
-                ...notification,
-                replies: notification.replies.map((reply) =>
-                  reply.id === replyId
-                    ? {
-                        ...reply,
-                        likes: reply.likes.includes(currentUser)
-                          ? reply.likes.filter((user) => user !== currentUser)
-                          : [...reply.likes, currentUser],
-                      }
-                    : reply
-                ),
-              };
-            }
-          }
-          return notification;
-        })
-      );
-    } catch (error) {
-      console.error('Error updating like:', error);
-    }
-  };
-  
-
-  // Удаление ответа
-  const handleDeleteReply = (notificationId, replyId) => {
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.id === notificationId
-          ? {
-              ...notification,
-              replies: notification.replies.filter(
-                (reply) => reply.id !== replyId
-              ),
-            }
-          : notification
-      )
-    );
-  };
-
-  // Сохранение отредактированного ответа
-  const handleSaveEditReply = (notificationId, replyId) => {
-    if (editReplyText.trim() === '') return;
-
-    if (countWords(editReplyText) > MAX_WORDS) {
-      alert(t('MaxWords', { count: MAX_WORDS }));
-      return;
-    }
-
-    const censoredEditReply = censorText(editReplyText);
-
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.id === notificationId
-          ? {
-              ...notification,
-              replies: notification.replies.map((reply) =>
-                reply.id === replyId
-                  ? { ...reply, comment: censoredEditReply }
-                  : reply
-              ),
-            }
-          : notification
-      )
-    );
-
-    setEditingReplyId(null);
-    setEditReplyText('');
-  };
+  // Если не показываем все уведомления, отображаем только первые 6
+  const displayedNotifications = showAll
+    ? notifications
+    : notifications.slice(0, 6);
 
   return (
-    <div className='min-h-screen flex flex-col bg-gray-50 dark:bg-gradient-to-br from-gray-200 via-gray-500 to-gray-700 text-gray-900 dark:text-gray-100'>
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       <Navbar />
-      <div className='dark:bg-gradient-to-br from-gray-100 via-gray-500 to-gray-700 bg-white pb-24'>
-        <div className='relative w-screen'>
+      <div className="bg-white dark:bg-gray-800 pb-24">
+        {/* Герой с фоновым изображением */}
+        <div className="relative w-full">
           <img
             src={notif}
-            alt='Background'
-            className='w-full h-64 object-cover -mb-16 justify-start'
+            alt="Background"
+            className="w-full h-72 object-cover"
           />
-          <div className='absolute top-0 left-0 w-full h-full bg-gray-900 opacity-45 dark:bg-gray-900 dark:opacity-50' />
-          <div className='absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white text-center'>
-            <h1 className='text-4xl font-bold'>{t('Уведомлении')}</h1>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-black/40" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <h1 className="text-3xl md:text-5xl font-extrabold text-white">
+              {t("Уведомлении")}
+            </h1>
           </div>
         </div>
-        <div className='flex-grow container mx-auto p-6 mt-28'>
-          {notifications.length === 0 ? (
-            <div className='flex w-screen -ml-24 -mt-28 justify-center'>
-              <DvdScreenNotif /> {/* Отображение, если уведомлений нет */}
+
+        <div className="container mx-auto p-4 sm:p-6 mt-20">
+          {loading ? (
+            <div className="min-h-screen flex justify-center items-center">
+              <svg
+                className="animate-spin h-10 w-10 text-gray-700 dark:text-gray-300"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8H4z"
+                ></path>
+              </svg>
+            </div>
+          ) : error ? (
+            <div className="text-center text-red-500 text-lg">{error}</div>
+          ) : notifications.length === 0 ? (
+            <div className="flex justify-center">
+              <DvdScreenNotif />
             </div>
           ) : (
-            <div className='space-y-5'>
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className='p-4 border rounded-lg shadow-md bg-white dark:bg-gray-700 dark:border-gray-700 max-w-full'
-                >
-                  <div className='flex items-center space-x-4'>
-                    <div className='flex-grow'>
-                      {notification.type === 'like' && (
-                        <div className='flex items-center space-x-2'>
-                          <svg
-                            width='24'
-                            height='24'
-                            viewBox='0 0 24 24'
-                            fill={'red'} // Динамический цвет
-                            stroke='#424242'
-                            strokeWidth='1.5'
-                            className='w-6 h-6'
-                          >
-                            <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
-                          </svg>
+            <>
+              <div className="space-y-6">
+                {displayedNotifications.map((notification) => {
+                  const { typeText, contentText } =
+                    getNotificationDetails(notification);
+                  const author = notification.author;
+                  const avatarUrl =
+                    author?.imageUrl && !author.imageUrl.includes("undefined")
+                      ? author.imageUrl.startsWith("http")
+                        ? author.imageUrl
+                        : `${BASE_URL}${author.imageUrl}`
+                      : "https://cdn-icons-png.flaticon.com/512/847/847969.png";
 
-                          <p>
-                            <strong>{notification.user}</strong>{' '}
-                            {t('понравился ваш пост:')}{' '}
-                            <span className='text-gray-900 dark:text-gray-200 mr-20'>
-                              {notification.postTitle}
+                  return (
+                    <div
+                      key={notification.id}
+                      className="p-6 bg-[#f7f7fc] dark:bg-gray-700 rounded-lg border border-[#f1f1f3] dark:border-gray-600 transition transform "
+                    >
+                      <div className="flex items-center">
+                        {/* Левая часть: все элементы уведомления */}
+                        <div className="flex items-center space-x-3">
+                          <img
+                            src={avatarUrl}
+                            alt={author?.name || t("Пользователь")}
+                            className="w-10 h-10 rounded-full object-cover border border-gray-300 dark:border-gray-600"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src =
+                                "https://cdn-icons-png.flaticon.com/512/847/847969.png";
+                            }}
+                          />
+                          <span className="font-semibold whitespace-nowrap">
+                            {author?.name || t("Неизвестный пользователь")}
+                          </span>
+                          <span className="text-gray-600 whitespace-nowrap">
+                            {typeText}
+                          </span>
+                          {contentText && (
+                            <span className="font-bold whitespace-nowrap">
+                              "{contentText}"
                             </span>
-                          </p>
+                          )}
+                          {notification.post_title && (
+                            <span className="text-gray-500 whitespace-nowrap font-mono">
+                              {t("Пост:")}{" "}
+                              <strong>{notification.post_title}</strong>
+                            </span>
+                          )}
                         </div>
-                      )}
-                      {notification.type === 'comment' && (
-                        <div className='flex items-center space-x-2'>
-                          <svg
-                            width='24'
-                            height='24'
-                            viewBox='0 0 122.97 122.88'
-                            className='fill-gray-800 dark:fill-gray-200 mr-1'
-                          >
-                            <path d='M61.44,0a61.46,61.46,0,0,1,54.91,89l6.44,25.74a5.83,5.83,0,0,1-7.25,7L91.62,115A61.43,61.43,0,1,1,61.44,0ZM96.63,26.25a49.78,49.78,0,1,0-9,77.52A5.83,5.83,0,0,1,92.4,103L109,107.77l-4.5-18a5.86,5.86,0,0,1,.51-4.34,49.06,49.06,0,0,0,4.62-11.58,50,50,0,0,0-13-47.62Z' />
-                          </svg>
-                          <p>
-                            <strong>{notification.user}</strong>{' '}
-                            {t('прокомментировал ваш пост:')}{' '}
-                            <span className='text-gray-900 dark:text-gray-200'>
-                              {notification.postTitle}
-                            </span>
-                            <br />
-                            <span className='text-gray-700 dark:text-gray-300'>
-                              "{notification.comment}"
-                            </span>
-                          </p>
+                        {/* Правая часть: время уведомления */}
+                        <div className="ml-auto">
+                          <span className="text-gray-500 text-xs whitespace-nowrap">
+                            {new Date(notification.created_at).toLocaleString(
+                              "ru-RU",
+                              {
+                                year: "numeric",
+                                month: "numeric",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }
+                            )}
+                          </span>
                         </div>
-                      )}
-                      {notification.type === 'reply' && (
-                        <div className='flex items-center space-x-2'>
-                          <svg
-                            width='24'
-                            height='24'
-                            xmlns='http://www.w3.org/2000/svg'
-                            x='0px'
-                            y='0px'
-                            viewBox='0 0 122.88 98.86'
-                            className='fill-gray-800 dark:fill-gray-200 mr-1'
-                          >
-                            <path d='M122.88,49.43L73.95,98.86V74.23C43.01,67.82,18.56,74.89,0,98.42c3.22-48.4,36.29-71.76,73.95-73.31l0-25.11 L122.88,49.43L122.88,49.43z' />
-                          </svg>
-                          <p>
-                            <strong>{notification.user}</strong>{' '}
-                            {t('ответил на ваш комментарий:')}{' '}
-                            <span className='text-gray-700 dark:text-gray-300'>
-                              "{notification.originalComment}"
-                            </span>
-                            <br />
-                            <span className='text-gray-700 dark:text-gray-300'>
-                              "{notification.comment}"
-                            </span>
-                          </p>
-                        </div>
-                      )}
+                      </div>
                     </div>
-
-                    {/* Реакции */}
-                    <div className='flex items-center space-x-2'>
-                      <button
-                        className={`text-lg ${
-                          notification.likes.includes(currentUser)
-                            ? 'text-red-500'
-                            : 'text-gray-400'
-                        }`}
-                        onClick={() => handleLike(notification.id)}
+                  );
+                })}
+              </div>
+              {notifications.length > 6 && (
+                <div className="flex justify-center mt-6">
+                  <button
+                    onClick={() => setShowAll(!showAll)}
+                    className="px-2 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition"
+                  >
+                    {showAll ? (
+                      // Стрелка вверх
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-8 h-8"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
                       >
-                        <svg
-                          width='24'
-                          height='24'
-                          viewBox='0 0 24 24'
-                          fill={
-                            notification.likes.includes(currentUser)
-                              ? 'red'
-                              : 'white'
-                          }
-                          stroke='#424242'
-                          strokeWidth='1.5'
-                          className='w-6 h-6 transition-all duration-300 ease-in-out hover:fill-red-600 transform hover:-translate-y-0.5'
-                        >
-                          <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
-                        </svg>
-                      </button>
-                      <span className='text-gray-600 dark:text-gray-300'>
-                        {notification.likes.length}
-                      </span>
-                    </div>
-                  </div>
-                  <div className='text-gray-500 text-sm'>
-                    {new Date(notification.timestamp).toLocaleString('ru-RU', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </div>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 15l7-7 7 7"
+                        />
+                      </svg>
+                    ) : (
+                      // Стрелка вниз
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-8 h-8"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    )}
+                  </button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>
