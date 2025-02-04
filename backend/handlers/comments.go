@@ -141,15 +141,12 @@ func CreateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем владельца поста
+	// Получаем владельца поста и отправляем уведомление
 	var post models.Post
 	if err := database.DB.Where("id = ?", comment.PostID).First(&post).Error; err == nil {
-		// ✅ Уведомляем только владельца поста, если комментатор - не он сам
 		if post.AuthorID != comment.AuthorID {
-			fmt.Println("🔔 Уведомляем только автора поста:", post.AuthorID)
+			fmt.Println("Calling NotifyComment with:", post.AuthorID, comment.PostID, comment.AuthorID, comment.ID)
 			NotifyComment(post.AuthorID, comment.PostID, comment.AuthorID, comment.ID)
-		} else {
-			fmt.Println("❌ Уведомление не отправлено: комментатор является автором поста")
 		}
 	}
 
@@ -280,7 +277,7 @@ func DeleteComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Удаляем все ответы на комментарий
+	// Удаляем все ответы на комментарийs
 	if err := tx.Where("parent_id = ?", commentID).Delete(&models.Reply{}).Error; err != nil {
 		tx.Rollback()
 		http.Error(w, "Failed to delete replies", http.StatusInternalServerError)
@@ -343,16 +340,11 @@ func LikeComment(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println("✅ Like saved successfully")
 
-	// Получаем владельца поста
-	var post models.Post
-	if err := database.DB.Where("id = ?", comment.PostID).First(&post).Error; err == nil {
-		// ✅ Уведомляем только владельца поста, если комментатор - не он сам
-		if post.AuthorID != comment.AuthorID {
-			fmt.Println("🔔 Уведомляем только автора поста:", post.AuthorID)
-			NotifyComment(post.AuthorID, comment.PostID, comment.AuthorID, comment.ID)
-		} else {
-			fmt.Println("❌ Уведомление не отправлено: комментатор является автором поста")
-		}
+	if comment.AuthorID != uint(userID) {
+		fmt.Println("🔹 Sending notification for comment like to user:", comment.AuthorID, "from user:", userID)
+		NotifyLikeComment(comment.AuthorID, uint(commentID), uint(userID))
+	} else {
+		fmt.Println("⚠️ User liked their own comment, skipping notification.")
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Comment liked successfully"})
