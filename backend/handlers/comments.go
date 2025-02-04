@@ -141,12 +141,15 @@ func CreateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем владельца поста и отправляем уведомление
+	// Получаем владельца поста
 	var post models.Post
 	if err := database.DB.Where("id = ?", comment.PostID).First(&post).Error; err == nil {
+		// Уведомляем только владельца поста, если комментатор - не он сам
 		if post.AuthorID != comment.AuthorID {
-			fmt.Println("Calling NotifyComment with:", post.AuthorID, comment.PostID, comment.AuthorID, comment.ID)
+			fmt.Println("🔔 Отправка уведомления автору поста:", post.AuthorID)
 			NotifyComment(post.AuthorID, comment.PostID, comment.AuthorID, comment.ID)
+		} else {
+			fmt.Println("❌ Уведомление не отправлено, так как автор поста оставил комментарий")
 		}
 	}
 
@@ -260,21 +263,43 @@ func DeleteComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Удаляем все ответы (replies), которые ссылаются на этот комментарий
-	if err := database.DB.Where("parent_id = ?", commentID).Delete(&models.Reply{}).Error; err != nil {
+	// ✅ Удаляем все связанные записи перед удалением комментария
+	tx := database.DB.Begin()
+
+	// Удаляем все лайки комментария
+	if err := tx.Where("comment_id = ?", commentID).Delete(&models.Like{}).Error; err != nil {
+		tx.Rollback()
+		http.Error(w, "Failed to delete likes", http.StatusInternalServerError)
+		return
+	}
+
+	// Удаляем все уведомления о комментарии
+	if err := tx.Where("comment_id = ?", commentID).Delete(&models.Notification{}).Error; err != nil {
+		tx.Rollback()
+		http.Error(w, "Failed to delete notifications", http.StatusInternalServerError)
+		return
+	}
+
+	// Удаляем все ответы на комментарий
+	if err := tx.Where("parent_id = ?", commentID).Delete(&models.Reply{}).Error; err != nil {
+		tx.Rollback()
 		http.Error(w, "Failed to delete replies", http.StatusInternalServerError)
 		return
 	}
 
-	// Удаляем сам комментарий после удаления ответов
-	if err := database.DB.Where("id = ?", commentID).Delete(&models.Comment{}).Error; err != nil {
+	// Удаляем сам комментарий
+	if err := tx.Where("id = ?", commentID).Delete(&models.Comment{}).Error; err != nil {
+		tx.Rollback()
 		http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
 		return
 	}
 
+	tx.Commit()
+
+	// ✅ Ответ пользователю
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Comment and its replies deleted successfully"})
+	json.NewEncoder(w).Encode(map[string]string{"message": "Comment and its related data deleted successfully"})
 }
 
 func LikeComment(w http.ResponseWriter, r *http.Request) {
