@@ -16,11 +16,14 @@ const LikeButton = ({ postId }) => {
           return;
         }
 
-        const response = await fetch(`${BASE_URL}/posts/${postId}/likes?user_id=${userId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await fetch(
+          `${BASE_URL}/posts/${postId}/likes?user_id=${userId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         if (!response.ok) {
           throw new Error(`Ошибка получения данных лайков: ${response.status}`);
@@ -29,7 +32,10 @@ const LikeButton = ({ postId }) => {
         const data = await response.json();
 
         // Проверяем, что сервер вернул ожидаемые поля
-        if (typeof data.likes === "number" && typeof data.isLiked === "boolean") {
+        if (
+          typeof data.likes === "number" &&
+          typeof data.isLiked === "boolean"
+        ) {
           setLikeCount(data.likes);
           setIsLiked(data.isLiked);
         } else {
@@ -66,7 +72,9 @@ const LikeButton = ({ postId }) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Ошибка сервера:", errorText);
-        throw new Error(`Ошибка обновления лайка: ${response.status} - ${errorText}`);
+        throw new Error(
+          `Ошибка обновления лайка: ${response.status} - ${errorText}`
+        );
       }
 
       // Успешное обновление

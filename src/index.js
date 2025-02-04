@@ -10,10 +10,11 @@ import Saved from './pages/saved';
 import MyBlogs from './pages/myblogs';
 import NotificationsPage from './pages/notifpage';
 import Repass from './pages/repass';
-import BlogContent from './pages/Content';
 import ProtectedRoute from './components/ProtectedRoute';
 import './i18n';
 import BlogEditor from './pages/newBlogEditor';
+import ContentPage from './pages/Content';
+
 
 const router = createBrowserRouter([
   {
@@ -30,7 +31,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/content/:id',
-    element: <BlogContent />,
+    element: <ContentPage />,
   },
   {
     path: '/beditor', //

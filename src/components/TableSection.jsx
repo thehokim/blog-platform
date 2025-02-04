@@ -1,85 +1,120 @@
-import React from 'react';
-import { FiPlus, FiX } from 'react-icons/fi';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from "react-i18next";
+import { FiPlus, FiX } from "react-icons/fi";
+import { useEffect, useState } from "react";
 
-const TableSection = ({ tableData, onChange, onAddRow, onAddColumn, onRemoveRow, onRemoveColumn }) => {
+const TableSection = ({
+  tableData,
+  onChange,
+  onHeaderChange,
+  onAddRow,
+  onAddColumn,
+  onRemoveRow,
+  onRemoveColumn,
+}) => {
   const { t } = useTranslation();
+  const [safeTableData, setSafeTableData] = useState({ columns: [], rows: [] });
+
+  useEffect(() => {
+    if (!tableData || !tableData.columns || tableData.columns.length === 0) {
+      setSafeTableData({
+        columns: [t("Column 1"), t("Column 2"), t("Column 3")],
+        rows: [
+          { [t("Column 1")]: "", [t("Column 2")]: "", [t("Column 3")]: "" },
+          { [t("Column 1")]: "", [t("Column 2")]: "", [t("Column 3")]: "" },
+          { [t("Column 1")]: "", [t("Column 2")]: "", [t("Column 3")]: "" },
+        ],
+      });
+    } else {
+      setSafeTableData({
+        columns: tableData.columns,
+        rows: tableData.rows.length > 0 ? tableData.rows : [{ [tableData.columns[0]]: "" }],
+      });
+    }
+  }, [tableData, t]); // Локализация заголовков
 
   return (
-    <div className="mb-4 mt-4 bg-white dark:bg-gray-800 p-4 border border-px border-gray-200 dark:border-gray-600 rounded-lg shadow-md overflow-auto">
-      <table className="w-full border border-gray-300 dark:border-gray-600 rounded-lg">
-        <thead>
+    <div className="mb-6 mt-6 bg-white dark:bg-gray-800 p-6 border border-[#f1f1f3] dark:border-gray-600 rounded-lg overflow-auto">
+      <table className="w-full border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden">
+        <thead className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
           <tr>
-            {tableData[0].map((_, colIndex) => (
+            {safeTableData.columns.map((col, colIndex) => (
               <th
                 key={colIndex}
-                className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-left relative"
+                className="border border-gray-300 dark:border-gray-600 px-4 py-2 text-center font-semibold"
               >
-                <input
-                  type="text"
-                  placeholder={t('Column Title')}
-                  className="w-full bg-transparent border-none text-sm focus:outline-none dark:text-white"
-                />
-                {/* Remove Column Button */}
-                <button
-                  onClick={() => onRemoveColumn(colIndex)}
-                  className="absolute top-1/2 right-1 transform -translate-y-1/2 text-red-500 hover:text-red-700 focus:outline-none"
-                  title={t('Remove Column')}
-                >
-                  <FiX size={12} />
-                </button>
+                <div className="flex items-center justify-between">
+                  <input
+                    type="text"
+                    value={col}
+                    onChange={(e) => onHeaderChange(e, colIndex)}
+                    placeholder={t("Column Title")}
+                    className="w-full bg-transparent border-none text-sm text-center font-bold focus:outline-none dark:text-white placeholder-gray-500"
+                  />
+                  <button
+                    onClick={() => onRemoveColumn(colIndex)}
+                    className="text-red-500 hover:text-red-700 focus:outline-none transition-transform transform scale-100 hover:scale-110"
+                    title={t("Remove Column")}
+                  >
+                    <FiX size={14} />
+                  </button>
+                </div>
               </th>
             ))}
-            {/* Add Column Button */}
-            <th className="px-2 py-1 text-center">
+            <th className="px-4 py-2 text-center">
               <button
                 onClick={onAddColumn}
-                className="text-blue-500 hover:text-blue-700 focus:outline-none "
-                title={t('Add Column')}
+                className="text-blue-500 hover:text-blue-700 focus:outline-none transition-transform transform scale-100 hover:scale-110"
+                title={t("Add Column")}
               >
-                <FiPlus size={16} />
+                <FiPlus size={18} />
               </button>
             </th>
           </tr>
         </thead>
         <tbody>
-          {tableData.map((row, rowIndex) => (
-            <tr key={rowIndex}>
-              {row.map((cell, cellIndex) => (
-                <td
-                  key={cellIndex}
-                  className="border border-gray-300 dark:border-gray-600 px-2 py-1"
-                >
-                  <input
-                    type="text"
-                    value={cell}
-                    onChange={(e) => onChange(e, rowIndex, cellIndex)}
-                    className="w-full bg-transparent border-none text-sm focus:outline-none dark:text-white"
-                    placeholder={t('Enter value')}
-                  />
+          {safeTableData.rows.length > 0 ? (
+            safeTableData.rows.map((row, rowIndex) => (
+              <tr key={rowIndex} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                {safeTableData.columns.map((col, cellIndex) => (
+                  <td key={cellIndex} className="border border-gray-300 dark:border-gray-600 px-4 py-2 text-center">
+                    <input
+                      type="text"
+                      value={row[col] || ""}
+                      onChange={(e) => onChange(e, rowIndex, col)}
+                      className="w-full bg-transparent border-none text-sm text-center focus:outline-none dark:text-white placeholder-gray-500"
+                      placeholder={t("Enter value")}
+                    />
+                  </td>
+                ))}
+                <td className="px-4 py-2 text-center">
+                  <button
+                    onClick={() => onRemoveRow(rowIndex)}
+                    className="text-red-500 hover:text-red-700 focus:outline-none transition-transform transform scale-100 hover:scale-110"
+                    title={t("Remove Row")}
+                  >
+                    <FiX size={14} />
+                  </button>
                 </td>
-              ))}
-              {/* Remove Row Button */}
-              <td className="px-2 py-1 text-center">
-                <button
-                  onClick={() => onRemoveRow(rowIndex)}
-                  className="text-red-500 hover:text-red-700 focus:outline-none"
-                  title={t('Remove Row')}
-                >
-                  <FiX size={12} />
-                </button>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td
+                colSpan={safeTableData.columns.length + 1}
+                className="text-center py-4 text-gray-500"
+              >
+                {t("No data available")}
               </td>
             </tr>
-          ))}
-          {/* Add Row Button */}
+          )}
           <tr>
-            <td colSpan={tableData[0].length + 1} className="text-left py-2 pl-2">
+            <td colSpan={safeTableData.columns.length + 1} className="text-left py-3 pl-3">
               <button
                 onClick={onAddRow}
-                className="text-blue-500 hover:text-blue-700 focus:outline-none"
-                title={t('Add Row')}
+                className="text-blue-500 hover:text-blue-700 focus:outline-none transition-transform transform scale-100 hover:scale-110"
+                title={t("Add Row")}
               >
-                <FiPlus size={16} />
+                <FiPlus size={18} />
               </button>
             </td>
           </tr>

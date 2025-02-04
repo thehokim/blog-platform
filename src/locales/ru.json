@@ -36,6 +36,10 @@
     "Remove Column":"Удалить столбец",
     "Enter value":"Введите значение",
     "Column Title":"Название столбца",
-    "Enter VideoLink":"Введите ссылку на видео"
+    "Enter VideoLink":"Введите ссылку на видео",
+    "Column": "Столбец",
+    "Column 1": "Столбец 1",
+    "Column 2": "Столбец 2",
+    "Column 3": "Столбец 3"
   }
   

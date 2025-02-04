@@ -3,6 +3,7 @@ import Blogs from './components/blogs';
 import Footer from './components/footer';
 import Navbar from './components/navbar';
 
+
 function App() {
   // localStorage.setItem('token', 'MYCUSTOMTOKEN');
 
