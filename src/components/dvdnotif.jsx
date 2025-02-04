@@ -86,12 +86,13 @@ const DvdScreenNotif = () => {
 
       {/* Центрированный блок с текстом и кнопкой */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-black z-0 px-4 text-center">
-        <p className="text-lg">
-          {t("Уведомлений пока нет, мы сообщим когда появится важная новость.")}
-        </p>
-        <p className="text-lg mb-6">
-          {t("Cледуйте за интересном контентом вместе с нами.")}
-        </p>
+      <p className="text-lg 2k:text-2xl 4k:text-3xl">
+        {t("Уведомлений пока нет, мы сообщим когда появится важная новость.")}
+      </p>
+      <p className="text-lg mb-6 2k:text-2xl 4k:text-3xl">
+        {t("Cледуйте за интересном контентом вместе с нами.")}
+      </p>
+
         <Link
           to="/"
           className="px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all duration-200 ease-in-out transform hover:-translate-y-1"

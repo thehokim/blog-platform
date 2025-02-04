@@ -278,7 +278,7 @@ const BlogEditor = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       <Navbar />
-      <main className="container mx-auto px-4 py-8 max-w-screen-lg">
+      <main className="container mx-auto px-4 py-8 max-w-screen-xl">
         <div className="bg-white shadow-sm rounded-xl p-8">
           <h2 className="text-3xl text-center font-bold mb-12 text-gray-900 flex items-center justify-center gap-2">
             {t("Создать блог")}
@@ -327,7 +327,7 @@ const BlogEditor = () => {
             {markerPositions.length > 0 ? (
               <button
                 onClick={clearMarkers}
-                className="mt-4 px-5 py-3 flex items-center justify-center gap-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300 transform hover:scale-105"
+                className="mt-4 px-5 py-3 flex items-center justify-center gap-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700"
               >
                 <FiTrash className="w-5 h-5" />
                 {t("Clear All Markers")}

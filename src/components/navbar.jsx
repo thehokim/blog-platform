@@ -51,7 +51,7 @@ function Navbar() {
 
   return (
     <nav className="bg-white border-gray-200">
-      <div className="max-w-screen-2xl mx-auto ml-5 p-4 flex items-center justify-between">
+      <div className="max-w-screen-4xl mx-auto ml-5 p-4 flex items-center justify-between">
         {/* Левая секция: Логотип */}
         <Link to="/" className="flex items-center space-x-3 rtl:space-x-reverse">
           {/* Используется только «светлый» логотип */}
@@ -61,6 +61,7 @@ function Navbar() {
             viewBox="0 0 105 60"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            className="ml-16"
           >
             <path
               d="M21.2287 48.305C18.0741 52.1619 15.362 58.4225 22.2434 58.4225H23.6433C34.5695 58.4225 56.7423 45.1298 63.4578 40.3189C60.9493 40.2018 59.484 41.5091 57.53 42.6147C55.656 43.6754 53.9666 44.5814 52.0171 45.5065C48.1682 47.3332 44.2785 49.1555 40.0432 50.5596C29.3582 54.1022 20.3029 53.4992 28.4583 42.7049C29.0434 41.9306 29.9404 41.0368 30.3104 40.3244C29.0139 40.2643 28.502 40.9927 27.7414 41.7534C24.9429 44.5523 25.0606 43.6196 21.2287 48.305Z"

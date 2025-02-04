@@ -8,7 +8,7 @@ function Footer() {
 
   return (
     <footer className="bg-blue-700 border-gray-200">
-      <div className="mx-auto w-full max-w-screen-xl p-4 py-6 lg:py-8 text-white">
+      <div className="mx-auto w-full max-w-screen-4xl p-4 py-6 px-12 lg:py-8 text-white">
         <div className="flex flex-wrap justify-between items-center space-y-4 lg:space-y-0">
           {/* Логотип */}
           <Link to="/" className="flex items-center">
