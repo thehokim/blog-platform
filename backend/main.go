@@ -20,12 +20,15 @@ func main() {
 	fs := http.FileServer(http.Dir("./uploads"))
 	router.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", fs))
 
-	// Configure CORS to allow both localhost:3000 and Ngrok URL
+	// Configure CORS to allow localhost, Ngrok URL, and blog-cmspace.uz
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"},                             // Frontend and Ngrok URL
+		AllowedOrigins: []string{
+			"http://localhost:3000",
+			"https://blog.cmspace.uz",
+			"https://www.blog.cmspace.uz",
+		},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},  // Allowed HTTP methods
 		AllowedHeaders: []string{"Content-Type", "Authorization"}, // Allowed headers
-
 		AllowCredentials: true, // Allow cookies/auth credentials
 	}).Handler(router)
 
